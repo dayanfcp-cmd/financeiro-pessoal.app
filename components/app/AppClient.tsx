@@ -1,19 +1,29 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { Shell } from "./Shell";
 import { Sheet } from "./Sheet";
 import { LancarForm } from "./LancarForm";
+import { ImportarFaturaForm } from "./ImportarFaturaForm";
+import { ImportarExtratoForm } from "./ImportarExtratoForm";
+import { ContasCartoesForm } from "./ContasCartoesForm";
+import { CategoriasForm } from "./CategoriasForm";
+import { ComprovantesForm } from "./ComprovantesForm";
 import { Icon, PersonArt } from "@/components/icons";
-import { fmtBRL, MESES, visualDaCategoria } from "@/lib/util/format";
+import { fmtBRL, fmtDataCurta, MESES, visualDaCategoria } from "@/lib/util/format";
 import { fetchTransacoesDoMes } from "@/lib/data/client-queries";
-import type { Account, Card, CategoryTree, Transaction } from "@/lib/types/database";
+import { marcarComoPago } from "@/lib/data/actions";
+import { createClient } from "@/lib/supabase/client";
+import type { Account, Card, CategoryTree, Transaction, Commitment, Receipt } from "@/lib/types/database";
 
 export function AppClient({
   accounts,
   cards,
   categoryTree,
   initialTransactions,
+  initialCommitments,
+  initialReceipts,
   initialMonth,
   initialYear,
 }: {
@@ -21,14 +31,20 @@ export function AppClient({
   cards: Card[];
   categoryTree: CategoryTree[];
   initialTransactions: Transaction[];
+  initialCommitments: Commitment[];
+  initialReceipts: Receipt[];
   initialMonth: number;
   initialYear: number;
 }) {
   const [month, setMonth] = useState(initialMonth);
   const [year, setYear] = useState(initialYear);
   const [tx, setTx] = useState<Transaction[]>(initialTransactions);
+  const [commitments, setCommitments] = useState<Commitment[]>(initialCommitments);
+  const [receipts, setReceipts] = useState<Receipt[]>(initialReceipts);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [sheetView, setSheetView] = useState<"lancar" | "importarFatura" | "importarExtrato" | "contasCartoes" | "categorias" | "comprovantes">("lancar");
   const [, startTransition] = useTransition();
+  const router = useRouter();
 
   const contaById = useMemo(() => new Map(accounts.map((a) => [a.id, a])), [accounts]);
   const cartaoById = useMemo(() => new Map(cards.map((c) => [c.id, c])), [cards]);
@@ -69,6 +85,27 @@ export function AppClient({
   }
 
   function recarregarMesAtual() {
+    startTransition(async () => {
+      const novas = await fetchTransacoesDoMes(month, year);
+      setTx(novas);
+    });
+  }
+
+  async function recarregarCommitments() {
+    const supabase = createClient();
+    const { data } = await supabase.from("commitments").select("*").order("data_vencimento", { ascending: true });
+    if (data) setCommitments(data as Commitment[]);
+  }
+
+  async function recarregarReceipts() {
+    const supabase = createClient();
+    const { data } = await supabase.from("receipts").select("*").order("created_at", { ascending: false });
+    if (data) setReceipts(data as Receipt[]);
+  }
+
+  async function pagar(id: string) {
+    await marcarComoPago(id);
+    await recarregarCommitments();
     startTransition(async () => {
       const novas = await fetchTransacoesDoMes(month, year);
       setTx(novas);
@@ -140,8 +177,31 @@ export function AppClient({
 
         <div className="md:col-span-2 grid grid-cols-2 gap-[10px]">
           <Pill label="Cartões" valor={fmtBRL(cards.reduce((a,c)=>a+faturaCartao(c.account_id),0))} cor="var(--brand)" />
-          <Pill label="Despesas do mês" valor={fmtBRL(totalDespesas)} cor="var(--out)" />
+          <Pill label="A pagar" valor={fmtBRL(commitments.filter(k=>k.status==="pendente").reduce((a,k)=>a+k.valor,0))} cor="var(--warn)" />
         </div>
+
+        {commitments.filter(k=>k.status==="pendente").length > 0 && (
+          <div>
+            <SecH title="Próximos compromissos" right="ver tudo em A pagar" />
+            <div className="bg-white rounded-[20px] shadow-[0_2px_4px_rgba(76,60,150,0.05),0_14px_34px_rgba(76,60,150,0.09)] p-[18px]">
+              {commitments.filter(k=>k.status==="pendente").slice(0,3).map((k) => {
+                const cat = categoriaById.get(k.category_id ?? "");
+                const vis = visualDaCategoria(cat?.parentNome ?? cat?.nome);
+                return (
+                  <div key={k.id} className="flex items-center gap-3 py-3 px-1 border-b border-[var(--line)] last:border-0">
+                    <span className="w-[30px] h-[30px] rounded-[10px] grid place-items-center bg-[var(--surface-2)]" style={{ color: vis.cor }}>
+                      <Icon name={vis.icone} className="w-[19px] h-[19px]" />
+                    </span>
+                    <div className="flex-1">
+                      <div className="text-[14.5px] font-semibold">{k.nome}</div>
+                      <div className="text-[12px] text-[var(--muted)] mt-0.5">vence {fmtDataCurta(k.data_vencimento)} · <span className="num">{fmtBRL(k.valor)}</span></div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         <div>
           <SecH title="Onde estou gastando" right={`${fmtBRL(totalDespesas)} no mês`} />
@@ -185,19 +245,82 @@ export function AppClient({
         </div>
       </div>
     ),
-    pagar: (
-      <div className="pt-2">
-        <div className="bg-white rounded-[20px] shadow-[0_2px_4px_rgba(76,60,150,0.05),0_14px_34px_rgba(76,60,150,0.09)] p-[22px] text-center">
-          <div className="w-[120px] mx-auto mb-2 text-[var(--brand)]">
-            <PersonArt className="w-full h-auto" />
+    pagar: (() => {
+      const HOJE = new Date();
+      const pend = commitments.filter((k) => k.status === "pendente");
+      const grupos: { venc: Commitment[]; hoje: Commitment[]; sete: Commitment[]; trinta: Commitment[]; depois: Commitment[] } = {
+        venc: [], hoje: [], sete: [], trinta: [], depois: [],
+      };
+      pend.forEach((k) => {
+        const dias = Math.round((new Date(k.data_vencimento + "T12:00:00").getTime() - HOJE.getTime()) / 86400000);
+        if (dias < 0) grupos.venc.push(k);
+        else if (dias === 0) grupos.hoje.push(k);
+        else if (dias <= 7) grupos.sete.push(k);
+        else if (dias <= 30) grupos.trinta.push(k);
+        else grupos.depois.push(k);
+      });
+      const aPagar = pend.reduce((a, k) => a + k.valor, 0);
+      const vencido = pend.filter((k) => new Date(k.data_vencimento + "T12:00:00") < HOJE).reduce((a, k) => a + k.valor, 0);
+      const pago = commitments.filter((k) => k.status === "pago").reduce((a, k) => a + k.valor, 0);
+
+      const kRow = (k: Commitment) => {
+        const venc = new Date(k.data_vencimento + "T12:00:00") < HOJE && k.status === "pendente";
+        const cat = categoriaById.get(k.category_id ?? "");
+        const vis = visualDaCategoria(cat?.parentNome ?? cat?.nome);
+        return (
+          <div key={k.id} className="flex items-center gap-3 py-3 px-1 border-b border-[var(--line)] last:border-0">
+            <span className="w-[30px] h-[30px] rounded-[10px] grid place-items-center bg-[var(--surface-2)]" style={{ color: vis.cor }}>
+              <Icon name={vis.icone} className="w-[19px] h-[19px]" />
+            </span>
+            <div className="flex-1">
+              <div className="text-[14.5px] font-semibold">{k.nome}</div>
+              <div className={`text-[12px] mt-0.5 ${venc ? "text-[var(--out)] font-semibold" : "text-[var(--muted)]"}`}>
+                {venc ? "venceu " : "vence "}{fmtDataCurta(k.data_vencimento)} · <span className="num">{fmtBRL(k.valor)}</span>
+              </div>
+            </div>
+            <button onClick={() => pagar(k.id)} className="border border-[var(--brand)] text-[var(--brand)] text-[12.5px] font-bold px-3 py-2 rounded-[11px]">Pagar</button>
           </div>
-          <p className="font-bold mt-2">Compromissos e recorrências — em breve</p>
-          <p className="text-[12.5px] text-[var(--muted)] max-w-xs mx-auto mt-1">
-            Esta área depende de uma próxima etapa do banco (tabela de compromissos). Por enquanto, acompanhe despesas e cartões nas outras abas.
-          </p>
+        );
+      };
+      const grupo = (label: string, arr: Commitment[], destaque?: boolean) =>
+        arr.length ? (
+          <div key={label}>
+            <div className={`text-[12px] font-extrabold uppercase tracking-wide mt-4 mb-1.5 mx-1 ${destaque ? "text-[var(--out)]" : "text-[var(--muted)]"}`}>{label}</div>
+            <div className="bg-white rounded-[20px] shadow-[0_2px_4px_rgba(76,60,150,0.05),0_14px_34px_rgba(76,60,150,0.09)] p-[18px]">
+              {arr.map(kRow)}
+            </div>
+          </div>
+        ) : null;
+
+      return (
+        <div className="pt-2">
+          <div className="grid grid-cols-3 gap-2.5 mb-1.5">
+            <div className="bg-white rounded-2xl p-3 text-center shadow-[0_2px_4px_rgba(76,60,150,0.05),0_14px_34px_rgba(76,60,150,0.09)]">
+              <div className="text-[11px] text-[var(--muted)] font-semibold">A pagar</div>
+              <div className="text-[16px] font-extrabold mt-1 num" style={{ color: "var(--warn)" }}>{fmtBRL(aPagar)}</div>
+            </div>
+            <div className="bg-white rounded-2xl p-3 text-center shadow-[0_2px_4px_rgba(76,60,150,0.05),0_14px_34px_rgba(76,60,150,0.09)]">
+              <div className="text-[11px] text-[var(--muted)] font-semibold">Vencido</div>
+              <div className="text-[16px] font-extrabold mt-1 num text-[var(--out)]">{fmtBRL(vencido)}</div>
+            </div>
+            <div className="bg-white rounded-2xl p-3 text-center shadow-[0_2px_4px_rgba(76,60,150,0.05),0_14px_34px_rgba(76,60,150,0.09)]">
+              <div className="text-[11px] text-[var(--muted)] font-semibold">Pago</div>
+              <div className="text-[16px] font-extrabold mt-1 num text-[var(--in)]">{fmtBRL(pago)}</div>
+            </div>
+          </div>
+          {grupo("Vencidas", grupos.venc, true)}
+          {grupo("Hoje", grupos.hoje)}
+          {grupo("Próximos 7 dias", grupos.sete)}
+          {grupo("Próximos 30 dias", grupos.trinta)}
+          {grupo("Depois", grupos.depois)}
+          {pend.length === 0 && (
+            <div className="bg-white rounded-[20px] shadow-[0_2px_4px_rgba(76,60,150,0.05),0_14px_34px_rgba(76,60,150,0.09)] p-[18px] mt-2">
+              <EmptyState titulo="Nada a pagar por aqui" sub="Importe uma fatura ou lance um compromisso" />
+            </div>
+          )}
         </div>
-      </div>
-    ),
+      );
+    })(),
     cartoes: (
       <div className="pt-2 flex flex-col gap-4">
         {cards.length === 0 && (
@@ -239,8 +362,25 @@ export function AppClient({
       <div className="pt-2">
         <SecH title="Trazer dados pra dentro" />
         <div className="bg-white rounded-[20px] shadow-[0_2px_4px_rgba(76,60,150,0.05),0_14px_34px_rgba(76,60,150,0.09)] p-[18px] mb-5">
-          <MaisLinha icon="importar" titulo="Importar extrato (OFX/CSV)" sub="chega numa próxima etapa" />
-          <MaisLinha icon="comprovante" titulo="Comprovantes" sub="foto do cupom e leitura de QR — em breve" />
+          <button onClick={() => { setSheetView("importarExtrato"); setSheetOpen(true); }} className="w-full text-left">
+            <MaisLinhaAtivo icon="importar" titulo="Importar extrato (OFX/CSV)" sub="com conferência antes de salvar" />
+          </button>
+          <button onClick={() => { setSheetView("importarFatura"); setSheetOpen(true); }} className="w-full text-left">
+            <MaisLinhaAtivo icon="banco" titulo="Importar fatura (Energia ou Água)" sub="PDF ou foto do código de barras" />
+          </button>
+          <button onClick={() => { setSheetView("comprovantes"); setSheetOpen(true); }} className="w-full text-left">
+            <MaisLinhaAtivo icon="comprovante" titulo="Comprovantes" sub={`${receipts.length} salvos · foto do cupom ou nota`} />
+          </button>
+        </div>
+
+        <SecH title="Organizar" />
+        <div className="bg-white rounded-[20px] shadow-[0_2px_4px_rgba(76,60,150,0.05),0_14px_34px_rgba(76,60,150,0.09)] p-[18px] mb-5">
+          <button onClick={() => { setSheetView("contasCartoes"); setSheetOpen(true); }} className="w-full text-left">
+            <MaisLinhaAtivo icon="banco" titulo="Contas e cartões" sub={`${accounts.filter(a=>a.tipo!=="cartao").length} contas · ${cards.length} cartões`} />
+          </button>
+          <button onClick={() => { setSheetView("categorias"); setSheetOpen(true); }} className="w-full text-left">
+            <MaisLinhaAtivo icon="financeiro" titulo="Categorias" sub={`${categoryTree.length} categorias`} />
+          </button>
         </div>
 
         <SecH title="Minhas contas" />
@@ -270,17 +410,56 @@ export function AppClient({
 
   return (
     <>
-      <Shell mesLabel={mesLabel} onMudarMes={mudarMes} onLancar={() => setSheetOpen(true)} views={views} />
+      <Shell mesLabel={mesLabel} onMudarMes={mudarMes} onLancar={() => { setSheetView("lancar"); setSheetOpen(true); }} views={views} />
       <Sheet open={sheetOpen} onClose={() => setSheetOpen(false)}>
-        <LancarForm
-          contas={accounts}
-          cartoes={cards}
-          categoryTree={categoryTree}
-          onSalvo={() => {
-            setSheetOpen(false);
-            recarregarMesAtual();
-          }}
-        />
+        {sheetView === "lancar" && (
+          <LancarForm
+            contas={accounts}
+            cartoes={cards}
+            categoryTree={categoryTree}
+            onSalvo={() => {
+              setSheetOpen(false);
+              recarregarMesAtual();
+            }}
+          />
+        )}
+        {sheetView === "importarFatura" && (
+          <ImportarFaturaForm
+            onSalvo={() => {
+              setSheetOpen(false);
+              recarregarCommitments();
+            }}
+          />
+        )}
+        {sheetView === "importarExtrato" && (
+          <ImportarExtratoForm
+            contas={accounts}
+            onSalvo={() => {
+              setSheetOpen(false);
+              recarregarMesAtual();
+            }}
+          />
+        )}
+        {sheetView === "contasCartoes" && (
+          <ContasCartoesForm
+            contas={accounts}
+            cartoes={cards}
+            onSalvo={() => router.refresh()}
+          />
+        )}
+        {sheetView === "categorias" && (
+          <CategoriasForm
+            categoryTree={categoryTree}
+            onSalvo={() => router.refresh()}
+          />
+        )}
+        {sheetView === "comprovantes" && (
+          <ComprovantesForm
+            transacoes={tx}
+            receipts={receipts}
+            onSalvo={recarregarReceipts}
+          />
+        )}
       </Sheet>
     </>
   );
@@ -330,6 +509,21 @@ function MaisLinha({ icon, titulo, sub }: { icon: string; titulo: string; sub: s
         <div className="text-[12px] text-[var(--muted)]">{sub}</div>
       </div>
       <Icon name="chev" className="w-[18px] h-[18px] text-[var(--muted)]" />
+    </div>
+  );
+}
+
+function MaisLinhaAtivo({ icon, titulo, sub }: { icon: string; titulo: string; sub: string }) {
+  return (
+    <div className="flex items-center gap-3 py-[13px] px-1 border-b border-[var(--line)] last:border-0">
+      <span className="w-[30px] h-[30px] rounded-[10px] grid place-items-center bg-[var(--brand-soft)] text-[var(--brand)]">
+        <Icon name={icon} className="w-[19px] h-[19px]" />
+      </span>
+      <div className="flex-1">
+        <div className="text-[14.5px] font-semibold">{titulo}</div>
+        <div className="text-[12px] text-[var(--muted)]">{sub}</div>
+      </div>
+      <Icon name="chev" className="w-[18px] h-[18px] text-[var(--brand)]" />
     </div>
   );
 }

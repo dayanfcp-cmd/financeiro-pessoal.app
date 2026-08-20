@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import type { Account, Card, Category, Transaction, CategoryTree } from "@/lib/types/database";
+import type { Account, Card, Category, Transaction, CategoryTree, Commitment, Receipt } from "@/lib/types/database";
 
 export async function getUser() {
   const supabase = await createClient();
@@ -81,4 +81,24 @@ export async function getDefaultSourceId(): Promise<string | null> {
     .limit(1)
     .maybeSingle();
   return data?.id ?? null;
+}
+
+export async function getCommitments(): Promise<Commitment[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("commitments")
+    .select("*")
+    .order("data_vencimento", { ascending: true });
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function getReceipts(): Promise<Receipt[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("receipts")
+    .select("*")
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return data ?? [];
 }

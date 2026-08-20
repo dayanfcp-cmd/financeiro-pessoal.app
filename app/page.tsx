@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getUser, getAccounts, getCards, getCategories, buildCategoryTree, getTransactions } from "@/lib/data/queries";
+import { getUser, getAccounts, getCards, getCategories, buildCategoryTree, getTransactions, getCommitments, getReceipts } from "@/lib/data/queries";
 import { AppClient } from "@/components/app/AppClient";
 
 export default async function Home() {
@@ -12,11 +12,13 @@ export default async function Home() {
   const month = now.getMonth();
   const year = now.getFullYear();
 
-  const [accounts, cards, categories, transactions] = await Promise.all([
+  const [accounts, cards, categories, transactions, commitments, receipts] = await Promise.all([
     getAccounts(),
     getCards(),
     getCategories(),
     getTransactions({ month, year }),
+    getCommitments(),
+    getReceipts(),
   ]);
 
   const categoryTree = buildCategoryTree(categories);
@@ -27,6 +29,8 @@ export default async function Home() {
       cards={cards}
       categoryTree={categoryTree}
       initialTransactions={transactions}
+      initialCommitments={commitments}
+      initialReceipts={receipts}
       initialMonth={month}
       initialYear={year}
     />
