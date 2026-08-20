@@ -1,0 +1,41 @@
+@import "tailwindcss";
+
+:root {
+  --brand: #6c4bf4;
+  --brand-2: #8a6bff;
+  --brand-deep: #4e31c9;
+  --brand-soft: #ece8ff;
+  --bg: #f5f4fb;
+  --surface: #ffffff;
+  --surface-2: #f1effa;
+  --ink: #20233d;
+  --muted: #6e7091;
+  --line: #e9e7f5;
+  --in: #12a87a;
+  --out: #f0616d;
+  --warn: #cf8a1c;
+  --warn-soft: #fbf1dd;
+  --background: var(--bg);
+  --foreground: var(--ink);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+.brand-gradient {
+  background: linear-gradient(150deg, #8a6bff 0%, #6c4bf4 52%, #4e31c9 100%);
+}
