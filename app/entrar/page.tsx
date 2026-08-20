@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Icon } from "@/components/icons";
@@ -13,8 +13,20 @@ export default function EntrarPage() {
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [carregando, setCarregando] = useState(false);
+  const [verificandoSessao, setVerificandoSessao] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
+
+  // Sem middleware para redirecionar quem já está logado, fazemos isso aqui
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      if (data.user) {
+        router.replace("/");
+      } else {
+        setVerificandoSessao(false);
+      }
+    });
+  }, [router, supabase]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -41,6 +53,12 @@ export default function EntrarPage() {
       setAviso("Conta criada. Verifique seu e-mail para confirmar o acesso, depois entre normalmente.");
       setModo("entrar");
     }
+  }
+
+  if (verificandoSessao) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#8A6BFF] via-[#6C4BF4] to-[#4E31C9]" />
+    );
   }
 
   return (

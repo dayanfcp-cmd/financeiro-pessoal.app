@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Icon } from "@/components/icons";
-import { sair } from "@/lib/data/actions";
+import { createClient } from "@/lib/supabase/client";
 
 type Tab = "inicio" | "pagar" | "cartoes" | "mais";
 
@@ -18,6 +19,14 @@ export function Shell({
   views: Record<Tab, React.ReactNode>;
 }) {
   const [tab, setTab] = useState<Tab>("inicio");
+  const router = useRouter();
+
+  async function handleSair() {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.replace("/entrar");
+    router.refresh();
+  }
 
   const itens: { id: Tab; label: string; icon: string }[] = [
     { id: "inicio", label: "Início", icon: "inicio" },
@@ -56,12 +65,12 @@ export function Shell({
           Lançar
         </button>
 
-        <form action={sair} className="mt-auto pt-4 border-t border-[var(--line)]">
-          <button className="flex items-center gap-3 rounded-xl px-3 py-3 text-[13.5px] font-semibold text-[var(--muted)] hover:bg-[var(--surface-2)] w-full">
+        <div className="mt-auto pt-4 border-t border-[var(--line)]">
+          <button onClick={handleSair} className="flex items-center gap-3 rounded-xl px-3 py-3 text-[13.5px] font-semibold text-[var(--muted)] hover:bg-[var(--surface-2)] w-full">
             <Icon name="sair" className="w-[18px] h-[18px]" />
             Sair
           </button>
-        </form>
+        </div>
       </aside>
 
       {/* app */}
