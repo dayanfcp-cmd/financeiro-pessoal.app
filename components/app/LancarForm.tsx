@@ -1,12 +1,32 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/icons";
 import { visualDaCategoria } from "@/lib/util/format";
 import { criarTransacao, criarTransferencia } from "@/lib/data/actions";
+import { interpretarFala } from "@/lib/util/parseFala";
 import type { Account, Card, CategoryTree } from "@/lib/types/database";
 
 type Tipo = "despesa" | "receita" | "transferencia";
+
+// A Web Speech API não tem tipos oficiais no TypeScript — declaração mínima do necessário.
+interface SpeechRecognitionResultLike {
+  isFinal: boolean;
+  0: { transcript: string };
+}
+interface SpeechRecognitionEventLike {
+  results: ArrayLike<SpeechRecognitionResultLike>;
+}
+interface SpeechRecognitionLike {
+  lang: string;
+  interimResults: boolean;
+  continuous: boolean;
+  start: () => void;
+  stop: () => void;
+  onresult: ((e: SpeechRecognitionEventLike) => void) | null;
+  onerror: (() => void) | null;
+  onend: (() => void) | null;
+}
 
 export function LancarForm({
   contas,
@@ -29,6 +49,74 @@ export function LancarForm({
   const [para, setPara] = useState(contas[1] ? `conta:${contas[1].id}` : "");
   const [erro, setErro] = useState<string | null>(null);
   const [salvando, setSalvando] = useState(false);
+
+  const [suportaVoz, setSuportaVoz] = useState(false);
+  const [gravando, setGravando] = useState(false);
+  const [transcricao, setTranscricao] = useState<string | null>(null);
+  const [avisoVoz, setAvisoVoz] = useState<string | null>(null);
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+
+  useEffect(() => {
+    const SpeechRecognition =
+      (window as unknown as { SpeechRecognition?: new () => SpeechRecognitionLike; webkitSpeechRecognition?: new () => SpeechRecognitionLike })
+        .SpeechRecognition ||
+      (window as unknown as { webkitSpeechRecognition?: new () => SpeechRecognitionLike }).webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- detecção de recurso do navegador após montar; é intencional e roda uma vez só
+      setSuportaVoz(true);
+    }
+  }, []);
+
+  function iniciarGravacao() {
+    const SpeechRecognitionCtor =
+      (window as unknown as { SpeechRecognition?: new () => SpeechRecognitionLike; webkitSpeechRecognition?: new () => SpeechRecognitionLike })
+        .SpeechRecognition ||
+      (window as unknown as { webkitSpeechRecognition?: new () => SpeechRecognitionLike }).webkitSpeechRecognition;
+    if (!SpeechRecognitionCtor) return;
+
+    setErro(null);
+    setAvisoVoz(null);
+    setTranscricao(null);
+
+    const recognition = new SpeechRecognitionCtor();
+    recognition.lang = "pt-BR";
+    recognition.interimResults = true;
+    recognition.continuous = false;
+
+    recognition.onresult = (e) => {
+      const ultimo = e.results[e.results.length - 1];
+      const texto = ultimo[0].transcript;
+      setTranscricao(texto);
+      if (ultimo.isFinal) {
+        aplicarTranscricao(texto);
+      }
+    };
+    recognition.onerror = () => {
+      setGravando(false);
+      setErro("Não consegui ouvir. Verifique a permissão do microfone e tente de novo.");
+    };
+    recognition.onend = () => setGravando(false);
+
+    recognitionRef.current = recognition;
+    setGravando(true);
+    recognition.start();
+  }
+
+  function pararGravacao() {
+    recognitionRef.current?.stop();
+    setGravando(false);
+  }
+
+  function aplicarTranscricao(texto: string) {
+    const lida = interpretarFala(texto, categoryTree);
+    setTipo(lida.tipo);
+    if (lida.valor) setValor(lida.valor.toString().replace(".", ","));
+    setDescricao(lida.descricao);
+    if (lida.subcategoriaId) setCatId(lida.subcategoriaId);
+    else if (lida.categoriaId) setCatId(lida.categoriaId);
+
+    if (!lida.valor) setAvisoVoz("Não identifiquei o valor — confira o campo abaixo.");
+  }
 
   const catAtual = categoryTree.find((c) => c.id === catId);
 
@@ -107,6 +195,29 @@ export function LancarForm({
           className="border-0 text-[46px] font-extrabold text-center w-full tracking-tight bg-transparent outline-none num"
         />
       </div>
+
+      {suportaVoz && (
+        <div className="mb-4">
+          <button
+            type="button"
+            onClick={gravando ? pararGravacao : iniciarGravacao}
+            className={`w-full flex items-center justify-center gap-2 py-3 rounded-2xl font-bold text-[14px] transition ${
+              gravando ? "bg-[var(--out)] text-white" : "bg-[var(--brand-soft)] text-[var(--brand)]"
+            }`}
+          >
+            <span className={`w-2 h-2 rounded-full ${gravando ? "bg-white animate-pulse" : "bg-[var(--brand)]"}`} />
+            {gravando ? "Ouvindo... toque para parar" : "Falar o lançamento"}
+          </button>
+          {transcricao && (
+            <p className="text-[12.5px] text-[var(--muted)] text-center mt-2 px-2">
+              Você disse: <span className="italic">&ldquo;{transcricao}&rdquo;</span>
+            </p>
+          )}
+          {avisoVoz && (
+            <p className="text-[12px] text-[var(--warn)] text-center mt-1">{avisoVoz}</p>
+          )}
+        </div>
+      )}
 
       <Field label="Descrição">
         <input

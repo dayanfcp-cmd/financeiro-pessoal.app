@@ -500,3 +500,116 @@ export async function excluirComprovante(receiptId: string, storagePath: string)
   if (error) throw error;
   revalidatePath("/");
 }
+
+/* ===================== Home Care — Usuários / Perfis ===================== */
+
+export async function editarPerfil(input: { id: string; nome: string; modulos: string[]; cor?: string }) {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("profiles")
+    .update({ nome: input.nome, modulos: input.modulos, ...(input.cor ? { cor: input.cor } : {}) })
+    .eq("id", input.id);
+  if (error) throw error;
+  revalidatePath("/");
+  revalidatePath("/usuarios");
+}
+
+/* ===================== Home Care — Atividades ===================== */
+
+export async function criarAtividade(input: {
+  nome: string;
+  recorrencia: "diario" | "semanal" | "personalizado";
+  diasSemana: number[] | null; // 0=Dom .. 6=Sáb
+  responsavel: string | null;
+}) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Não autenticado.");
+
+  const { data: perfil } = await supabase.from("profiles").select("household_id").eq("id", user.id).single();
+  if (!perfil) throw new Error("Perfil não encontrado.");
+
+  const { error } = await supabase.from("activities").insert({
+    household_id: perfil.household_id,
+    nome: input.nome,
+    recorrencia: input.recorrencia,
+    dias_semana: input.recorrencia === "diario" ? null : input.diasSemana,
+    responsavel: input.responsavel,
+    criado_por: user.id,
+  });
+  if (error) throw error;
+  revalidatePath("/atividades");
+}
+
+export async function excluirAtividade(id: string) {
+  const supabase = await createClient();
+  // soft delete — preserva o histórico de conclusões já registradas
+  const { error } = await supabase.from("activities").update({ ativo: false }).eq("id", id);
+  if (error) throw error;
+  revalidatePath("/atividades");
+}
+
+/** Alterna a conclusão de uma atividade num dia — marca se não existe, desmarca se já existe. */
+export async function alternarConclusao(activityId: string, dataISO: string, jaConcluida: boolean) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Não autenticado.");
+
+  if (jaConcluida) {
+    const { error } = await supabase
+      .from("activity_completions")
+      .delete()
+      .eq("activity_id", activityId)
+      .eq("data", dataISO);
+    if (error) throw error;
+  } else {
+    const { data: perfil } = await supabase.from("profiles").select("household_id").eq("id", user.id).single();
+    if (!perfil) throw new Error("Perfil não encontrado.");
+    const { error } = await supabase.from("activity_completions").upsert(
+      { activity_id: activityId, household_id: perfil.household_id, data: dataISO, feito_por: user.id },
+      { onConflict: "activity_id,data" }
+    );
+    if (error) throw error;
+  }
+  revalidatePath("/atividades");
+}
+
+/* ===================== Home Care — Lista de compras ===================== */
+
+export async function criarItemCompra(input: { nome: string; responsavel: string | null }) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Não autenticado.");
+
+  const { data: perfil } = await supabase.from("profiles").select("household_id").eq("id", user.id).single();
+  if (!perfil) throw new Error("Perfil não encontrado.");
+
+  const { error } = await supabase.from("shopping_items").insert({
+    household_id: perfil.household_id,
+    nome: input.nome,
+    responsavel: input.responsavel,
+    criado_por: user.id,
+  });
+  if (error) throw error;
+  revalidatePath("/atividades");
+}
+
+export async function alternarComprado(id: string, comprado: boolean) {
+  const supabase = await createClient();
+  const { error } = await supabase.from("shopping_items").update({ comprado: !comprado }).eq("id", id);
+  if (error) throw error;
+  revalidatePath("/atividades");
+}
+
+export async function excluirItemCompra(id: string) {
+  const supabase = await createClient();
+  const { error } = await supabase.from("shopping_items").delete().eq("id", id);
+  if (error) throw error;
+  revalidatePath("/atividades");
+}

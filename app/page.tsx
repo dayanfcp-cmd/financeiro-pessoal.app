@@ -1,38 +1,17 @@
 import { redirect } from "next/navigation";
-import { getUser, getAccounts, getCards, getCategories, buildCategoryTree, getTransactions, getCommitments, getReceipts } from "@/lib/data/queries";
-import { AppClient } from "@/components/app/AppClient";
+import { getUser } from "@/lib/data/queries";
+import { getMeuPerfil } from "@/lib/data/household-queries";
+import { Launcher } from "@/components/app/Launcher";
 
-export default async function Home() {
+export default async function LauncherPage() {
   const user = await getUser();
-  if (!user) {
+  if (!user) redirect("/entrar");
+
+  const perfil = await getMeuPerfil();
+  if (!perfil) {
+    // login existe mas ainda não tem perfil vinculado a uma casa
     redirect("/entrar");
   }
 
-  const now = new Date();
-  const month = now.getMonth();
-  const year = now.getFullYear();
-
-  const [accounts, cards, categories, transactions, commitments, receipts] = await Promise.all([
-    getAccounts(),
-    getCards(),
-    getCategories(),
-    getTransactions({ month, year }),
-    getCommitments(),
-    getReceipts(),
-  ]);
-
-  const categoryTree = buildCategoryTree(categories);
-
-  return (
-    <AppClient
-      accounts={accounts}
-      cards={cards}
-      categoryTree={categoryTree}
-      initialTransactions={transactions}
-      initialCommitments={commitments}
-      initialReceipts={receipts}
-      initialMonth={month}
-      initialYear={year}
-    />
-  );
+  return <Launcher nome={perfil.nome} modulos={perfil.modulos} />;
 }

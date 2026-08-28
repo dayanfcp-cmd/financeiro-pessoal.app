@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import type { Account, Card, Category, Transaction, CategoryTree, Commitment, Receipt } from "@/lib/types/database";
+import type { Account, Card, Category, Transaction, CategoryTree, Commitment, Receipt, Activity, ActivityCompletion, ShoppingItem } from "@/lib/types/database";
 
 export async function getUser() {
   const supabase = await createClient();
@@ -101,4 +101,25 @@ export async function getReceipts(): Promise<Receipt[]> {
     .order("created_at", { ascending: false });
   if (error) throw error;
   return data ?? [];
+}
+
+/* ===================== Home Care (KAD) ===================== */
+
+export async function getAtividades(): Promise<Activity[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("activities").select("*").eq("ativo", true).order("created_at");
+  if (error) return [];
+  return (data ?? []) as Activity[];
+}
+
+export async function getConclusoesDoDia(dataISO: string): Promise<ActivityCompletion[]> {
+  const supabase = await createClient();
+  const { data } = await supabase.from("activity_completions").select("*").eq("data", dataISO);
+  return (data ?? []) as ActivityCompletion[];
+}
+
+export async function getListaCompras(): Promise<ShoppingItem[]> {
+  const supabase = await createClient();
+  const { data } = await supabase.from("shopping_items").select("*").order("created_at", { ascending: true });
+  return (data ?? []) as ShoppingItem[];
 }

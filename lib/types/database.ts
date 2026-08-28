@@ -85,3 +85,46 @@ export interface Receipt {
   data: string | null;
   estabelecimento: string | null;
 }
+
+/* ===================== Home Care (KAD) — multi-usuário ===================== */
+
+export type HouseholdRole = "dono" | "membro";
+export type ModuloId = "financeiro" | "atividades" | "usuarios";
+export type Recorrencia = "diario" | "semanal" | "personalizado";
+
+export interface Profile {
+  id: string;
+  household_id: string;
+  nome: string;
+  cor: string;
+  papel: HouseholdRole;
+  modulos: ModuloId[];
+}
+
+export interface Activity {
+  id: string;
+  household_id: string;
+  nome: string;
+  recorrencia: Recorrencia;
+  dias_semana: number[] | null; // 0=Dom .. 6=Sáb
+  responsavel: string | null;
+  criado_por: string | null;
+  ativo: boolean;
+}
+
+export interface ActivityCompletion {
+  id: string;
+  activity_id: string;
+  household_id: string;
+  data: string; // YYYY-MM-DD
+  feito_por: string | null;
+}
+
+export interface ShoppingItem {
+  id: string;
+  household_id: string;
+  nome: string;
+  responsavel: string | null;
+  comprado: boolean;
+  criado_por: string | null;
+}

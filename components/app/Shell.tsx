@@ -65,7 +65,11 @@ export function Shell({
           Lançar
         </button>
 
-        <div className="mt-auto pt-4 border-t border-[var(--line)]">
+        <div className="mt-auto pt-4 border-t border-[var(--line)] flex flex-col gap-1">
+          <button onClick={() => router.push("/")} className="flex items-center gap-3 rounded-xl px-3 py-3 text-[13.5px] font-semibold text-[var(--muted)] hover:bg-[var(--surface-2)] w-full">
+            <Icon name="inicio" className="w-[18px] h-[18px]" />
+            Módulos
+          </button>
           <button onClick={handleSair} className="flex items-center gap-3 rounded-xl px-3 py-3 text-[13.5px] font-semibold text-[var(--muted)] hover:bg-[var(--surface-2)] w-full">
             <Icon name="sair" className="w-[18px] h-[18px]" />
             Sair
@@ -76,6 +80,11 @@ export function Shell({
       {/* app */}
       <div className="flex-1 flex flex-col min-h-screen md:min-h-0">
         <div className="sticky top-0 z-20 bg-[var(--bg)] px-5 pt-[calc(env(safe-area-inset-top)+14px)] pb-2 md:px-8 md:pt-6">
+          <div className="flex items-center justify-between md:hidden mb-1.5">
+            <button onClick={() => router.push("/")} className="w-8 h-8 rounded-full bg-white border border-[var(--line)] grid place-items-center">
+              <Icon name="inicio" className="w-[15px] h-[15px] text-[var(--muted)]" />
+            </button>
+          </div>
           <div className="text-[12px] tracking-[0.14em] uppercase text-[var(--muted)] font-bold">
             Minha vida financeira
           </div>
