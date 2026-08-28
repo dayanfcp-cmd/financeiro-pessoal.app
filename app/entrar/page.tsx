@@ -11,7 +11,6 @@ function EntrarPageConteudo() {
   const searchParams = useSearchParams();
   const supabase = createClient();
 
-  const [modo, setModo] = useState<"entrar" | "criar">("entrar");
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [carregando, setCarregando] = useState(false);
@@ -61,7 +60,6 @@ function EntrarPageConteudo() {
       });
 
     return () => clearTimeout(timeoutId);
-
   }, [router, supabase, searchParams]);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -70,25 +68,14 @@ function EntrarPageConteudo() {
     setAviso(null);
     setCarregando(true);
 
-    if (modo === "entrar") {
-      const { error } = await supabase.auth.signInWithPassword({ email, password: senha });
-      setCarregando(false);
-      if (error) {
-        setErro(traduzErro(error.message));
-        return;
-      }
-      router.replace("/");
-      router.refresh();
-    } else {
-      const { error } = await supabase.auth.signUp({ email, password: senha });
-      setCarregando(false);
-      if (error) {
-        setErro(traduzErro(error.message));
-        return;
-      }
-      setAviso("Conta criada. Verifique seu e-mail para confirmar o acesso, depois entre normalmente.");
-      setModo("entrar");
+    const { error } = await supabase.auth.signInWithPassword({ email, password: senha });
+    setCarregando(false);
+    if (error) {
+      setErro(traduzErro(error.message));
+      return;
     }
+    router.replace("/");
+    router.refresh();
   }
 
   if (verificandoSessao) {
@@ -104,12 +91,12 @@ function EntrarPageConteudo() {
           <PersonArt />
         </div>
         <h1 className="text-2xl font-extrabold tracking-tight leading-tight">
-          Sua vida financeira,
+          Home Care
           <br />
           num lugar só
         </h1>
         <p className="text-sm text-violet-100/80 mt-2">
-          Controle o que entra, o que sai e o que vem pela frente.
+          Entre com a conta que o dono da casa criou para você.
         </p>
       </div>
 
@@ -117,27 +104,6 @@ function EntrarPageConteudo() {
         onSubmit={handleSubmit}
         className="w-full max-w-sm bg-white rounded-3xl shadow-2xl p-6 flex flex-col gap-4"
       >
-        <div className="flex bg-[#F1EFFA] rounded-2xl p-1 mb-1">
-          <button
-            type="button"
-            onClick={() => setModo("entrar")}
-            className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition ${
-              modo === "entrar" ? "bg-white shadow text-[#20233D]" : "text-[#6E7091]"
-            }`}
-          >
-            Entrar
-          </button>
-          <button
-            type="button"
-            onClick={() => setModo("criar")}
-            className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition ${
-              modo === "criar" ? "bg-white shadow text-[#20233D]" : "text-[#6E7091]"
-            }`}
-          >
-            Criar conta
-          </button>
-        </div>
-
         <label className="text-left">
           <span className="block text-xs font-bold text-[#6E7091] mb-1.5">E-mail</span>
           <input
@@ -180,7 +146,7 @@ function EntrarPageConteudo() {
           disabled={carregando}
           className="w-full bg-[#6C4BF4] text-white font-extrabold rounded-2xl py-3.5 text-[15px] shadow-lg shadow-[#6C4BF4]/30 disabled:opacity-60"
         >
-          {carregando ? "Só um instante…" : modo === "entrar" ? "Entrar" : "Criar minha conta"}
+          {carregando ? "Só um instante…" : "Entrar"}
         </button>
       </form>
     </div>
@@ -189,7 +155,6 @@ function EntrarPageConteudo() {
 
 function traduzErro(msg: string) {
   if (msg.includes("Invalid login credentials")) return "E-mail ou senha incorretos.";
-  if (msg.includes("User already registered")) return "Já existe uma conta com esse e-mail.";
   if (msg.includes("Password should be")) return "A senha precisa ter pelo menos 6 caracteres.";
   return msg;
 }
