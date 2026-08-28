@@ -1,12 +1,14 @@
 "use client";
 
+import { Suspense } from "react";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Icon } from "@/components/icons";
 
-export default function EntrarPage() {
+function EntrarPageConteudo() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const supabase = createClient();
 
   const [modo, setModo] = useState<"entrar" | "criar">("entrar");
@@ -28,6 +30,17 @@ export default function EntrarPage() {
       }
     };
 
+    // Login existe mas não tem perfil vinculado a uma casa (o launcher nos mandou
+    // pra cá com esse sinalizador). Encerra a sessão aqui — no navegador, onde
+    // isso realmente funciona — pra não ficar batendo ida-e-volta com "/".
+    if (searchParams.get("semperfil") === "1") {
+      supabase.auth.signOut().finally(() => {
+        setAviso("Sua sessão foi encerrada porque essa conta não está vinculada a nenhuma casa. Fale com o dono da casa para ser adicionado.");
+        marcarResolvido();
+      });
+      return;
+    }
+
     const timeoutId = setTimeout(marcarResolvido, 4000);
 
     supabase.auth
@@ -48,7 +61,8 @@ export default function EntrarPage() {
       });
 
     return () => clearTimeout(timeoutId);
-  }, [router, supabase]);
+
+  }, [router, supabase, searchParams]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -199,5 +213,13 @@ function PersonArt() {
         <path d="M96 172c6 12 42 12 48 0" />
       </g>
     </svg>
+  );
+}
+
+export default function EntrarPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-gradient-to-br from-[#8A6BFF] via-[#6C4BF4] to-[#4E31C9]" />}>
+      <EntrarPageConteudo />
+    </Suspense>
   );
 }
