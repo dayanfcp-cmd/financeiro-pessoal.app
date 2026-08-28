@@ -17,15 +17,37 @@ export default function EntrarPage() {
   const [erro, setErro] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
 
-  // Sem middleware para redirecionar quem já está logado, fazemos isso aqui
+  // Sem middleware para redirecionar quem já está logado, fazemos isso aqui.
+  // Nunca deve travar: se a checagem falhar ou demorar demais, mostra o formulário mesmo assim.
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      if (data.user) {
-        router.replace("/");
-      } else {
+    let resolvido = false;
+    const marcarResolvido = () => {
+      if (!resolvido) {
+        resolvido = true;
         setVerificandoSessao(false);
       }
-    });
+    };
+
+    const timeoutId = setTimeout(marcarResolvido, 4000);
+
+    supabase.auth
+      .getUser()
+      .then(({ data }) => {
+        clearTimeout(timeoutId);
+        if (data.user) {
+          router.replace("/");
+          // não marca resolvido aqui — a navegação já vai trocar de tela;
+          // se por algum motivo o destino falhar, o timeout acima garante a saída
+        } else {
+          marcarResolvido();
+        }
+      })
+      .catch(() => {
+        clearTimeout(timeoutId);
+        marcarResolvido();
+      });
+
+    return () => clearTimeout(timeoutId);
   }, [router, supabase]);
 
   async function handleSubmit(e: React.FormEvent) {
