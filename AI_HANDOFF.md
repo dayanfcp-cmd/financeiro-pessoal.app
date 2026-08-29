@@ -15,6 +15,28 @@ Este arquivo é o caderno de passagem entre os agentes de IA que trabalham no pr
 
 ## 2026-08-28 — ChatGPT
 
+**Tarefa:** Implementar edição completa de tarefas no módulo Atividades.
+
+**Alterações:**
+- `components/app/AtividadesV2Client.tsx` foi atualizado com editor completo de tarefa existente.
+- Botão de lápis `✎` disponível nas tarefas de Hoje e na Semana, em PC e celular.
+- Editor permite alterar: nome, responsável, tipo Normal/Flex, condição da Flex, recorrência e dias da semana.
+- A edição usa `update` pelo ID da atividade, portanto não cria tarefa duplicada.
+- Para tarefas não diárias, é possível selecionar múltiplos dias da semana.
+- Flex continua exigindo condição e preserva a regra de validação.
+- Adicionado botão de ditado por voz no campo de tarefa, usando SpeechRecognition/WebkitSpeechRecognition quando disponível no navegador.
+- O mesmo botão de ditado foi colocado na criação de nova tarefa.
+- Salvamento mostra estado `Salvando…` e valida campos obrigatórios.
+- Exclusão continua desativando a atividade para preservar histórico.
+
+**Commit:** `f0ec2ae6ba1bbb8566b625fea636c2fa9a293fda`.
+
+**Observação:** A alteração foi feita no componente V2 existente e mantém lista de compras, Flex/validação, painel e navegação. Próximo passo é validar o build/deploy da Vercel e testar edição no PC e celular.
+
+---
+
+## 2026-08-28 — ChatGPT
+
 **Tarefa:** Implementar lista de compras com arquivamento e tarefa FLEX com validação.
 
 **Banco/Supabase:**
@@ -37,22 +59,11 @@ Este arquivo é o caderno de passagem entre os agentes de IA que trabalham no pr
 - `validacao_resultado=false` fica registrada como verificação feita, mas NÃO conta como atividade realizada.
 - O histórico/painel exibe verificações e quantas foram contabilizadas.
 
-**Arquivos:**
-- `components/app/AtividadesV2Client.tsx` — nova interface do módulo.
-- `app/atividades/page.tsx` — passou a usar o novo cliente.
-- `lib/types/database.ts` — tipos atualizados para FLEX/validação.
-
-**Commits:** `e0d91fb`, `fa8866f`, `3524b7c`.
-
-**Próximo passo:** testar no deploy da Vercel criar uma Flex, verificar com SIM/NÃO e confirmar a contagem; testar adicionar uma compra, arquivar e encontrá-la no Painel/Arquivados. Se algum INSERT direto pelo cliente for bloqueado por RLS, mover a operação para server action/API mantendo as mesmas regras.
-
 ---
 
 ## 2026-08-28 — ChatGPT
 
 **Tarefa:** Corrigir erro ao criar novo usuário no módulo Usuários.
-
-**Diagnóstico:** A API `/api/usuarios` já exigia `username`, mas o formulário antigo não enviava esse campo.
 
 **Alterações:**
 - Adicionado campo visível Nome de usuário no cadastro.
