@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Icon } from "@/components/icons";
 import { createClient } from "@/lib/supabase/client";
 import type { Activity, ActivityCompletion, ActivityOccurrenceOverride, Profile, ShoppingItem, Recorrencia, ActivityType } from "@/lib/types/database";
+import { PainelAtividades } from "@/components/app/PainelAtividades";
 
 const ACCENT = "#12A87A";
 const DIAS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
@@ -107,7 +108,7 @@ export function AtividadesV2Client({ meuId, membros, atividadesIniciais, conclus
         <div className="mt-7 text-[13px] font-bold text-[#6E7091] mb-2">Arquivados</div>
         <div className="bg-white rounded-[20px] px-4 shadow-sm">{arquivadasCompra.length?arquivadasCompra.map(i=><div key={i.id} className="flex items-center gap-3 py-3 border-b border-[#E9E7F5] last:border-0"><div className="flex-1"><div className="text-[14px] font-semibold line-through text-[#6E7091]">{i.nome}</div><div className="text-[11px] text-[#9A9BB0]">Comprado / arquivado</div></div><button onClick={()=>desarquivarCompra(i)} className="text-[11px] font-bold text-[#6E7091]">Reabrir</button></div>):<Empty text="Nenhum item arquivado"/>}</div>
       </>}
-      {aba==="painel"&&<><SectionTitle text="Painel" meta="histórico"/><div className="grid grid-cols-2 gap-3 mb-6"><Metric label="Verificações" value={String(conclusoes.filter(c=>c.verificado_em).length)}/><Metric label="Contabilizadas" value={String(conclusoes.filter(c=>c.validacao_resultado===true).length)}/></div><div className="text-[13px] font-bold text-[#6E7091] mb-2">Compras arquivadas</div><div className="bg-white rounded-[20px] px-4 shadow-sm">{arquivadasCompra.length?arquivadasCompra.map(i=><div key={i.id} className="py-3 border-b border-[#E9E7F5] last:border-0 text-[14px] font-semibold text-[#6E7091]">{i.nome}</div>):<Empty text="Nenhuma compra arquivada"/>}</div></>}
+      {aba==="painel"&&<PainelAtividades meuId={meuId} membros={membros}/>}
     </main>
     <nav className="fixed left-0 right-0 bottom-0 z-30 h-[calc(60px+env(safe-area-inset-bottom))] pb-[env(safe-area-inset-bottom)] bg-white border-t border-[#E9E7F5] flex max-w-[460px] mx-auto md:max-w-[680px]">
       <Tab icon="calendario" label="Hoje" active={aba==="hoje"} onClick={()=>setAba("hoje")}/><Tab icon="calendario" label="Semana" active={aba==="semana"} onClick={()=>setAba("semana")}/><div className="flex-1 grid place-items-center"><button aria-label="Nova tarefa" onClick={()=>setModal(aba==="compras"?"compra":"atividade")} className="relative -top-3 w-[52px] h-[52px] rounded-full text-white grid place-items-center shadow-lg active:scale-95 transition" style={{background:ACCENT}}><Icon name="plus" className="w-6 h-6"/></button></div><Tab icon="carrinho" label="Compras" active={aba==="compras"} onClick={()=>setAba("compras")}/><Tab icon="painel" label="Painel" active={aba==="painel"} onClick={()=>setAba("painel")}/>
