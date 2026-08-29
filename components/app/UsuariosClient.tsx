@@ -79,7 +79,7 @@ function SheetUsuario({ alvo, souEuMesmo, onFechar, onSalvo }: { alvo: Profile |
       } else {
         if (!email.trim() || !senha.trim()) { setErro("Preencha e-mail e senha."); setSalvando(false); return; }
         const res = await fetch("/api/usuarios", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: email.trim(), senha, nome: nome.trim(), username: username.trim(), modulos }) });
-        const data = await res.json();
+        const data: any = await res.json();
         if (!res.ok) throw new Error(data.error || "Não foi possível criar o usuário.");
         if (avatarFile && (data.profile?.id || data.id || data.userId)) await uploadAvatar(data.profile?.id || data.id || data.userId, data.profile?.household_id || alvo?.household_id || "pending");
       }
