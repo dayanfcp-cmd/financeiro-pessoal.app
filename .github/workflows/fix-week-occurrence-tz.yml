@@ -1,0 +1,34 @@
+name: Fix weekly occurrence timezone
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  fix:
+    if: ${{ !contains(github.event.head_commit.message, '[tz-fixed]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fix Sao Paulo day boundaries
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('components/app/AtividadesV2Client.tsx')
+          s=p.read_text()
+          old='const hoje=new Date().getDay();'
+          new='''const hoje=new Date(new Intl.DateTimeFormat("en-US",{timeZone:"America/Sao_Paulo",year:"numeric",month:"2-digit",day:"2-digit"}).format()).getDay();'''
+          if old in s: s=s.replace(old,new,1)
+          old2='function dataDia(d:number){const x=new Date();x.setHours(12,0,0,0);x.setDate(x.getDate()-x.getDay()+d);return x.toISOString().slice(0,10)}'
+          new2='''function dataDia(d:number){const agora=new Date();const partes=new Intl.DateTimeFormat("en-US",{timeZone:"America/Sao_Paulo",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(agora);const get=(t:string)=>partes.find(p=>p.type===t)?.value??"";const x=new Date(Number(get("year")),Number(get("month"))-1,Number(get("day")),12,0,0,0);x.setDate(x.getDate()-x.getDay()+d);return dataLocalISO(x)}'''
+          if old2 in s: s=s.replace(old2,new2,1)
+          p.write_text(s)
+          PY
+      - name: Remove temporary workflow and commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add components/app/AtividadesV2Client.tsx
+          git rm .github/workflows/fix-week-occurrence-tz.yml
+          git commit -m "fix: corrigir dia local das ocorrencias [tz-fixed]"
+          git push
