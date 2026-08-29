@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getUser, getAtividades, getConclusoesDoDia, getListaCompras } from "@/lib/data/queries";
 import { getMeuPerfil, getMembrosDaCasa } from "@/lib/data/household-queries";
-import { AtividadesClient } from "@/components/app/AtividadesClient";
+import { AtividadesV2Client } from "@/components/app/AtividadesV2Client";
 
 function hojeISO() {
   return new Date().toISOString().slice(0, 10);
@@ -22,7 +22,7 @@ export default async function AtividadesPage() {
   ]);
 
   return (
-    <AtividadesClient
+    <AtividadesV2Client
       meuId={perfil.id}
       membros={membros}
       atividadesIniciais={atividades}
