@@ -18,7 +18,17 @@ export async function getMembrosDaCasa(householdId: string): Promise<Profile[]> 
     .from("profiles")
     .select("*")
     .eq("household_id", householdId)
-    .order("papel", { ascending: true }); // "dono" antes de "membro" (ordem alfabética favorece)
+    .order("papel", { ascending: true })
+    .order("created_at", { ascending: false });
   if (error) throw error;
-  return data ?? [];
+
+  // Se houver perfis duplicados com o mesmo nome, mantém o mais recente.
+  // Isso evita que cadastros antigos apareçam duplicados em "Atribuir a" e
+  // garante preferência pelo perfil atual quando houve recriação do usuário.
+  const unicos = new Map<string, Profile>();
+  for (const perfil of data ?? []) {
+    const chave = perfil.nome.trim().toLocaleLowerCase();
+    if (!unicos.has(chave)) unicos.set(chave, perfil);
+  }
+  return Array.from(unicos.values());
 }
