@@ -8,9 +8,6 @@ function hojeISO() {
 }
 
 export default async function AtividadesPage() {
-  // getMeuPerfil já valida a sessão via Supabase Auth. Não fazemos um segundo
-  // getUser() antes dele: isso economiza uma ida ao Auth justamente no clique
-  // da Anna no primeiro carregamento da tela.
   const perfil = await getMeuPerfil();
   if (!perfil) redirect("/entrar");
   if (!perfil.modulos.includes("atividades")) redirect("/");
@@ -25,6 +22,7 @@ export default async function AtividadesPage() {
   return (
     <AtividadesV2Client
       meuId={perfil.id}
+      householdId={perfil.household_id}
       membros={membros}
       atividadesIniciais={atividades}
       conclusoesHojeIniciais={conclusoesHoje}
