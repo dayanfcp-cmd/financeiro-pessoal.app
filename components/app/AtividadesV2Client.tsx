@@ -9,7 +9,12 @@ import { PainelAtividades } from "@/components/app/PainelAtividades";
 
 const ACCENT = "#12A87A";
 const DIAS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
-const hojeISO = () => new Date().toISOString().slice(0, 10);
+const dataLocalISO = (d = new Date()) => {
+  const partes = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(d);
+  const get = (tipo: string) => partes.find((p) => p.type === tipo)?.value ?? "";
+  return `${get("year")}-${get("month")}-${get("day")}`;
+};
+const hojeISO = () => dataLocalISO();
 const vence = (a: Activity, d: number) => a.recorrencia === "diario" || (a.dias_semana ?? []).includes(d);
 
 export function AtividadesV2Client({ meuId, householdId, membros, atividadesIniciais, conclusoesHojeIniciais, comprasIniciais }: {
@@ -50,7 +55,7 @@ export function AtividadesV2Client({ meuId, householdId, membros, atividadesInic
 
   useEffect(()=>{ recarregar(); },[]);
 
-  function dataSemana(d:number){const x=new Date();x.setHours(12,0,0,0);x.setDate(x.getDate()-x.getDay()+d);return x.toISOString().slice(0,10);}
+  function dataSemana(d:number){const x=new Date();x.setHours(12,0,0,0);x.setDate(x.getDate()-x.getDay()+d);return dataLocalISO(x);}
   async function adiantarTarefa(a:Activity, originalDay:number, targetDay:number){
     if(a.recorrencia==="diario"){alert("Tarefas diárias não podem ser adiantadas.");return;}
     if(originalDay===targetDay)return;
