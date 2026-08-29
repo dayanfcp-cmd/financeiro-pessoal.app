@@ -4,7 +4,15 @@ import { getMeuPerfil, getMembrosDaCasa } from "@/lib/data/household-queries";
 import { AtividadesV2Client } from "@/components/app/AtividadesV2Client";
 
 function hojeISO() {
-  return new Date().toISOString().slice(0, 10);
+  const agora = new Date();
+  const partes = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(agora);
+  const get = (tipo: string) => partes.find((p) => p.type === tipo)?.value ?? "";
+  return `${get("year")}-${get("month")}-${get("day")}`;
 }
 
 export default async function AtividadesPage() {
