@@ -17,7 +17,8 @@ export type HouseholdRole = "dono" | "membro";
 export type ModuloId = "financeiro" | "atividades" | "usuarios";
 export type Recorrencia = "diario" | "semanal" | "personalizado";
 export type ActivityType = "normal" | "flex";
-export interface Profile { id:string; household_id:string; nome:string; username:string|null; cor:string; papel:HouseholdRole; modulos:ModuloId[]; }
+export interface Profile { id:string; household_id:string; nome:string; username:string|null; avatar_url?:string|null; cor:string; papel:HouseholdRole; modulos:ModuloId[]; }
 export interface Activity { id:string; household_id:string; nome:string; tipo:ActivityType; condicao:string|null; recorrencia:Recorrencia; dias_semana:number[]|null; responsavel:string|null; criado_por:string|null; ativo:boolean; }
 export interface ActivityCompletion { id:string; activity_id:string; household_id:string; data:string; feito_por:string|null; validacao_resultado?:boolean|null; verificado_em?:string|null; }
+export interface ActivityOccurrenceOverride { id:string; household_id:string; activity_id:string; original_date:string; target_date:string; created_by:string|null; created_at:string; }
 export interface ShoppingItem { id:string; household_id:string; nome:string; responsavel:string|null; comprado:boolean; criado_por:string|null; }
