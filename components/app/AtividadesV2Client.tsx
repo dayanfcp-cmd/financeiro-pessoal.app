@@ -24,6 +24,7 @@ export function AtividadesV2Client({ meuId, membros, atividadesIniciais, conclus
   const [flex,setFlex] = useState<Activity|null>(null);
   const [salvando,setSalvando] = useState(false);
   const [adiantamentos,setAdiantamentos] = useState<ActivityOccurrenceOverride[]>([]);
+  const [adiantamentos,setAdiantamentos] = useState<ActivityOccurrenceOverride[]>([]);
   const supabase=createClient();
   const hoje=new Date().getDay();
   const hojeData=hojeISO();
