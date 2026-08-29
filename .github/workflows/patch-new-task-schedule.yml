@@ -1,0 +1,41 @@
+name: Patch new task schedule
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  patch:
+    if: ${{ !contains(github.event.head_commit.message, '[new-task-patch]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch UI
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path('components/app/AtividadesV2Client.tsx')
+          s=p.read_text()
+
+          old_icon='''{a.tipo==="flex"?<button onClick={()=>setFlex(a)} className="w-7 h-7 rounded-xl border-2 border-[#F0B429] bg-[#FFF8E8] grid place-items-center flex-none active:scale-95 transition"><span className="text-[11px] font-black text-[#B57900]">?</span></button>:<button onClick={()=>concluirNormal(a)} className={`w-6 h-6 rounded-lg border-2 grid place-items-center flex-none ${realizado?"bg-[#12A87A] border-[#12A87A]":"bg-white border-[#E9E7F5]"}`}>{realizado&&<Icon name="check" className="w-3.5 h-3.5 text-white"/>}</button>}'''
+          new_icon='''{a.tipo==="flex"?<button onClick={()=>setFlex(a)} aria-label={realizado?"Verificação concluída":"Verificar condição"} className={`w-7 h-7 rounded-xl border-2 grid place-items-center flex-none active:scale-95 transition ${realizado?"border-[#12A87A] bg-[#E8FAF4]":"border-[#F0B429] bg-[#FFF8E8]"}`}>{realizado?<Icon name="check" className="w-3.5 h-3.5 text-[#12A87A]"/>:<span className="text-[11px] font-black text-[#B57900]">?</span>}</button>:<button onClick={()=>concluirNormal(a)} className={`w-6 h-6 rounded-lg border-2 grid place-items-center flex-none ${realizado?"bg-[#12A87A] border-[#12A87A]":"bg-white border-[#E9E7F5]"}`}>{realizado&&<Icon name="check" className="w-3.5 h-3.5 text-white"/>}</button>}'''
+          if old_icon not in s:
+              raise SystemExit('flex icon pattern not found')
+          s=s.replace(old_icon,new_icon,1)
+
+          pattern=r'function NovaAtividade\([\s\S]*?\nfunction NovaCompra'
+          replacement='''function NovaAtividade({membros,onClose,onSaved}:{membros:Profile[];onClose:()=>void;onSaved:()=>void}){\n  const [nome,setNome]=useState("");\n  const [resp,setResp]=useState(membros[0]?.id||"");\n  const [tipo,setTipo]=useState<ActivityType>("normal");\n  const [cond,setCond]=useState("");\n  const [rec,setRec]=useState<Recorrencia>("diario");\n  const [dias,setDias]=useState<number[]>([]);\n  const [busy,setBusy]=useState(false);\n  const supabase=createClient();\n  function toggleDia(d:number){setDias(p=>p.includes(d)?p.filter(x=>x!==d):[...p,d].sort((a,b)=>a-b));}\n  async function save(){\n    if(!nome.trim()||!resp)return;\n    if(rec!=="diario"&&!dias.length){alert("Escolha pelo menos um dia da semana.");return;}\n    if(tipo==="flex"&&!cond.trim()){alert("Informe a condição da tarefa Flex.");return;}\n    setBusy(true);\n    const {error}=await supabase.from("activities").insert({nome:nome.trim(),responsavel:resp,tipo,condicao:tipo==="flex"?(cond.trim()||null):null,recorrencia:rec,dias_semana:rec==="diario"?null:dias,ativo:true});\n    setBusy(false);\n    if(error){alert(`Não foi possível criar a tarefa: ${error.message}`);return;}\n    onClose();onSaved();\n  }\n  return <Overlay><div className="bg-white rounded-[24px] p-5 w-[min(92vw,440px)] max-h-[90vh] overflow-y-auto">\n    <div className="text-[18px] font-extrabold">Nova tarefa</div>\n    <div className="flex gap-2 mt-4"><input autoFocus value={nome} onChange={e=>setNome(e.target.value)} placeholder="O que precisa ser feito?" className="flex-1 rounded-2xl border border-[#E9E7F5] px-4 py-3 outline-none focus:ring-2 focus:ring-[#12A87A]"/><VoiceButton onText={t=>setNome(p=>p?`${p} ${t}`:t)}/></div>\n    <label className="block text-[12px] font-bold text-[#6E7091] mt-4">Responsável</label>\n    <select value={resp} onChange={e=>setResp(e.target.value)} className="w-full mt-2 rounded-2xl border border-[#E9E7F5] px-4 py-3 bg-white">{membros.map(m=><option key={m.id} value={m.id}>{m.nome}</option>)}</select>\n    <div className="grid grid-cols-2 gap-2 mt-3"><button type="button" onClick={()=>setTipo("normal")} className={`rounded-2xl py-3 text-[12px] font-extrabold ${tipo==="normal"?"bg-[#E8FAF4] text-[#087A58]":"bg-[#F3F2F8] text-[#6E7091]"}`}>Tarefa normal</button><button type="button" onClick={()=>setTipo("flex")} className={`rounded-2xl py-3 text-[12px] font-extrabold ${tipo==="flex"?"bg-[#FFF8E8] text-[#B57900]":"bg-[#F3F2F8] text-[#6E7091]"}`}>Flex · validação</button></div>\n    {tipo==="flex"&&<textarea value={cond} onChange={e=>setCond(e.target.value)} placeholder="Qual condição deve ser verificada?" className="w-full mt-3 min-h-[90px] rounded-2xl border border-[#E9E7F5] px-4 py-3"/>}\n    <div className="mt-4"><div className="text-[12px] font-bold text-[#6E7091] mb-2">Programação</div><select value={rec} onChange={e=>{setRec(e.target.value as Recorrencia);if(e.target.value==="diario")setDias([])}} className="w-full rounded-2xl border border-[#E9E7F5] px-4 py-3 bg-white"><option value="diario">Todos os dias</option><option value="semanal">Dias selecionados</option><option value="personalizado">Programação personalizada</option></select>{rec!=="diario"&&<><div className="text-[11px] text-[#6E7091] mt-2">Selecione os dias em que essa tarefa deve aparecer.</div><div className="grid grid-cols-7 gap-1.5 mt-2">{DIAS.map((d,i)=><button type="button" key={d} onClick={()=>toggleDia(i)} className={`rounded-xl py-2 text-[10px] font-bold border ${dias.includes(i)?"bg-[#E8FAF4] border-[#12A87A] text-[#087A58]":"bg-white border-[#E9E7F5] text-[#6E7091]"}`}>{d}</button>)}</div></>}</div>\n    <div className="flex gap-2 mt-5"><button onClick={onClose} className="flex-1 py-3 rounded-2xl font-bold bg-[#F3F2F8]">Cancelar</button><button disabled={busy||!nome.trim()||!resp||(tipo==="flex"&&!cond.trim())||(rec!=="diario"&&!dias.length)} onClick={save} className="flex-1 py-3 rounded-2xl font-bold text-white bg-[#12A87A] disabled:opacity-50">{busy?"Criando…":"Criar tarefa"}</button></div>\n  </div></Overlay>}\n\nfunction NovaCompra'''
+          s2,n=re.subn(pattern,replacement,s,count=1)
+          if n!=1: raise SystemExit('NovaAtividade function pattern not found')
+          p.write_text(s2)
+          PY
+      - name: Commit patched code and remove one-time workflow
+        run: |
+          rm -f .github/workflows/patch-new-task-schedule.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add components/app/AtividadesV2Client.tsx .github/workflows/patch-new-task-schedule.yml
+          git diff --cached --quiet && exit 0
+          git commit -m "feat: add task scheduling and flex check icon [new-task-patch]"
+          git push
