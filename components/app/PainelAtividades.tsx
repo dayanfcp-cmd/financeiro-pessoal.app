@@ -12,6 +12,7 @@ const localDate = (d = new Date()) => {
 };
 const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 const addDays = (d: Date, n: number) => { const x = localDate(d); x.setDate(x.getDate() + n); return x; };
+const inicioDaSemana = (d: Date) => addDays(d, -d.getDay());
 const venceNoDia = (a: Activity, dia: number) => a.recorrencia === "diario" || (a.dias_semana ?? []).includes(dia);
 
 type Periodo = "hoje" | "semana" | "2semanas" | "mes";
@@ -33,7 +34,8 @@ export function PainelAtividades({ meuId, householdId, membros }: { meuId: strin
   const [erro, setErro] = useState<string | null>(null);
 
   const periodoAtual = PERIODOS.find(p => p.id === periodo) ?? PERIODOS[0];
-  const inicio = localDate();
+  const hoje = localDate();
+  const inicio = periodo === "semana" || periodo === "2semanas" ? inicioDaSemana(hoje) : hoje;
   const fim = addDays(inicio, periodoAtual.dias - 1);
 
   async function carregar() {
@@ -55,16 +57,8 @@ export function PainelAtividades({ meuId, householdId, membros }: { meuId: strin
 
   useEffect(() => { carregar(); }, [householdId, periodo]);
 
-  const datas = useMemo(() => Array.from({ length: periodoAtual.dias }, (_, i) => addDays(inicio, i)), [periodoAtual.dias]);
+  const datas = useMemo(() => Array.from({ length: periodoAtual.dias }, (_, i) => addDays(inicio, i)), [inicio.getTime(), periodoAtual.dias]);
   const conclusaoPorOcorrencia = useMemo(() => new Map(conclusoes.map(c => [`${c.activity_id}|${c.data}`, c])), [conclusoes]);
-  const overridesPorOcorrencia = useMemo(() => {
-    const m = new Map<string, ActivityOccurrenceOverride>();
-    for (const o of adiantamentos) {
-      if (o.original_date) m.set(`${o.activity_id}|${o.original_date}`, o);
-      if (o.target_date) m.set(`${o.activity_id}|${o.target_date}`, o);
-    }
-    return m;
-  }, [adiantamentos]);
 
   const ocorrencias = useMemo(() => {
     const out: { activity: Activity; data: string; date: Date }[] = [];
@@ -114,7 +108,7 @@ export function PainelAtividades({ meuId, householdId, membros }: { meuId: strin
     <div className="text-[13px] font-bold text-[#6E7091] px-1">Detalhamento por usuário</div>
     <div className="bg-white rounded-[20px] px-4 shadow-[0_2px_4px_rgba(76,60,150,.05),0_14px_34px_rgba(76,60,150,.09)]">{exibidos.map(({ p, total, realizadas, pendentes }) => <div key={p.id} className="py-4 border-b border-[#E9E7F5] last:border-0"><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-full overflow-hidden bg-[#ECE8FF] grid place-items-center text-[#6C4BF4] font-extrabold">{p.avatar_url ? <img src={p.avatar_url} alt={p.nome} className="w-full h-full object-cover"/> : p.nome.charAt(0).toUpperCase()}</div><div className="flex-1"><div className="text-[14px] font-extrabold">{p.nome}</div><div className="text-[11px] text-[#6E7091]">{realizadas} realizadas de {total}</div></div><div className="text-right"><div className="text-[17px] font-black text-[#12A87A]">{realizadas}/{total}</div><div className="text-[10px] text-[#9A9BB0]">{pendentes} pendentes</div></div></div><div className="mt-3 h-2 rounded-full bg-[#F0EFF6] overflow-hidden"><div className="h-full rounded-full bg-[#12A87A]" style={{ width: `${total ? Math.round(realizadas / total * 100) : 0}%` }}/></div></div>)}{!exibidos.length && <div className="py-10 text-center text-[13px] text-[#6E7091]">Nenhum usuário encontrado.</div>}</div>
     {erro && <div className="rounded-2xl bg-[#FFF3F0] border border-[#F3C4BF] p-3 text-[11px] text-[#B23B36]">{erro}</div>}
-    <div className="text-[11px] text-[#9A9BB0] px-1">O painel começa sempre em <b>Hoje</b>. Você pode ampliar para 1 semana, 2 semanas ou 1 mês. Flex só conta como realizada quando a validação é verdadeira.</div>
+    <div className="text-[11px] text-[#9A9BB0] px-1">O painel começa sempre em <b>Hoje</b>. A semana começa no <b>domingo</b> e termina no <b>sábado</b>. Flex só conta como realizada quando a validação é verdadeira.</div>
   </div>;
 }
 function ResumoDestaque({ titulo, nome, total, realizadas }: { titulo: string; nome: string; total: number; realizadas: number }) { const pct = total ? Math.round(realizadas / total * 100) : 0; return <div className="bg-white rounded-[20px] p-4 shadow-[0_2px_4px_rgba(76,60,150,.05),0_14px_34px_rgba(76,60,150,.09)]"><div className="text-[11px] font-extrabold text-[#6E7091]">{titulo}</div><div className="text-[15px] font-black mt-1">{nome}</div><div className="text-[25px] font-black text-[#12A87A] mt-2">{realizadas}<span className="text-[15px] text-[#9A9BB0]">/{total}</span></div><div className="text-[10px] text-[#6E7091]">realizadas / total</div><div className="mt-2 h-1.5 rounded-full bg-[#F0EFF6] overflow-hidden"><div className="h-full rounded-full bg-[#12A87A]" style={{ width: `${pct}%` }}/></div></div> }
