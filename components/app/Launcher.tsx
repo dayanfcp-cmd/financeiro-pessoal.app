@@ -1,5 +1,6 @@
 "use client";
 
+import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/icons";
 
@@ -29,7 +30,13 @@ const MODULOS: Record<string, { label: string; desc: string; icone: string; rota
 
 export function Launcher({ nome, modulos }: { nome: string; modulos: string[] }) {
   const router = useRouter();
+  const [isNavigating, startNavigation] = useTransition();
   const disponiveis = modulos.filter((m) => MODULOS[m]);
+
+  function abrirModulo(rota: string) {
+    if (isNavigating) return;
+    startNavigation(() => router.push(rota));
+  }
 
   return (
     <div className="min-h-screen bg-[var(--bg,#F5F4FB)] px-5 pt-[calc(env(safe-area-inset-top)+26px)] pb-10 md:max-w-[900px] md:mx-auto">
@@ -52,17 +59,26 @@ export function Launcher({ nome, modulos }: { nome: string; modulos: string[] })
           return (
             <button
               key={key}
-              onClick={() => router.push(m.rota)}
-              className="relative overflow-hidden text-left rounded-[22px] p-[22px] text-white min-h-[128px] flex flex-col justify-between shadow-[0_2px_4px_rgba(76,60,150,.05),0_14px_34px_rgba(76,60,150,.09)]"
+              type="button"
+              onClick={() => abrirModulo(m.rota)}
+              disabled={isNavigating}
+              aria-busy={isNavigating}
+              className="group relative overflow-hidden text-left rounded-[22px] p-[22px] text-white min-h-[128px] flex flex-col justify-between shadow-[0_2px_4px_rgba(76,60,150,.05),0_14px_34px_rgba(76,60,150,.09)] cursor-pointer select-none touch-manipulation transition-all duration-150 ease-out hover:-translate-y-0.5 hover:shadow-[0_4px_8px_rgba(76,60,150,.08),0_18px_38px_rgba(76,60,150,.14)] active:translate-y-0 active:scale-[0.97] active:shadow-[0_1px_2px_rgba(76,60,150,.05),0_7px_18px_rgba(76,60,150,.10)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#6C4BF4] disabled:cursor-wait disabled:opacity-80"
               style={{ background: m.grad }}
             >
-              <span className="w-[34px] h-[34px] rounded-[11px] bg-white/15 grid place-items-center">
+              <span className="w-[34px] h-[34px] rounded-[11px] bg-white/15 grid place-items-center transition-transform duration-150 group-active:scale-90">
                 <Icon name={m.icone} className="w-[19px] h-[19px]" />
               </span>
               <div>
                 <div className="text-[17px] font-extrabold tracking-tight mt-3.5">{m.label}</div>
                 <div className="text-[12px] text-white/80 mt-0.5">{m.desc}</div>
               </div>
+
+              {isNavigating && (
+                <span className="absolute inset-0 flex items-center justify-center bg-black/10 backdrop-blur-[1px]" aria-hidden="true">
+                  <span className="w-5 h-5 rounded-full border-2 border-white/40 border-t-white animate-spin" />
+                </span>
+              )}
             </button>
           );
         })}
