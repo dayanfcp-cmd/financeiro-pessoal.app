@@ -15,6 +15,24 @@ Este arquivo é o caderno de passagem entre os agentes de IA que trabalham no pr
 
 ## 2026-08-28 — ChatGPT
 
+**Tarefa:** Corrigir duplicidade de membro na lista "Atribuir a".
+
+**Diagnóstico:** O Supabase tinha dois perfis chamados Dayan na mesma casa: o perfil antigo e o perfil do login atual. O perfil atual é o mais recente. Não havia registros de atividades/compras vinculados ao perfil antigo nas colunas com FK para `profiles`, mas a ferramenta disponível não permitiu excluir o perfil antigo diretamente.
+
+**Alteração:**
+- Atualizado `lib/data/household-queries.ts`.
+- `getMembrosDaCasa()` agora ordena por papel e, em caso de empate, pelo `created_at` mais recente.
+- Perfis com o mesmo nome, ignorando maiúsculas/minúsculas e espaços, são deduplicados.
+- O perfil mais recente é mantido. Assim, a lista de "Atribuir a" mostra apenas um Dayan e prioriza o perfil atual.
+
+**Commit:** `800525a5fc02660ed1ca8568eb7a072a0dbd81c1`
+
+**Observação:** A correção é de aplicação e não apaga o perfil antigo do Supabase. Se futuramente houver uma operação administrativa segura para excluir o perfil antigo, ele pode ser removido depois de nova verificação das dependências.
+
+---
+
+## 2026-08-28 — ChatGPT
+
 **Tarefa:** Corrigir feedback visual dos botões de módulos e reduzir a sensação de atraso na navegação.
 
 **Alterações:**
