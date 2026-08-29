@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getAtividades, getConclusoesDoDia, getListaCompras } from "@/lib/data/queries";
 import { getMeuPerfil, getMembrosDaCasa } from "@/lib/data/household-queries";
 import { AtividadesV2Client } from "@/components/app/AtividadesV2Client";
+import { LogoutButton } from "@/components/app/LogoutButton";
 
 function hojeISO() {
   const agora = new Date();
@@ -28,13 +29,16 @@ export default async function AtividadesPage() {
   ]);
 
   return (
-    <AtividadesV2Client
-      meuId={perfil.id}
-      householdId={perfil.household_id}
-      membros={membros}
-      atividadesIniciais={atividades}
-      conclusoesHojeIniciais={conclusoesHoje}
-      comprasIniciais={compras}
-    />
+    <>
+      <LogoutButton />
+      <AtividadesV2Client
+        meuId={perfil.id}
+        householdId={perfil.household_id}
+        membros={membros}
+        atividadesIniciais={atividades}
+        conclusoesHojeIniciais={conclusoesHoje}
+        comprasIniciais={compras}
+      />
+    </>
   );
 }
