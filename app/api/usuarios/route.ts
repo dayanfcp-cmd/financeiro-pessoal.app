@@ -12,21 +12,24 @@ async function exigirDono() {
 }
 
 function normalizarUsername(value: string) { return value.trim().toLowerCase().replace(/^@/, ""); }
+function gerarUsername(nome: string) {
+  return nome.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9._-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 30);
+}
 function usernameValido(value: string) { return /^[a-z0-9._-]{3,30}$/.test(value); }
 
 export async function POST(req: NextRequest) {
   const householdId = await exigirDono();
   if (!householdId) return NextResponse.json({ error: "Apenas o dono da casa pode criar usuários." }, { status: 403 });
   const body = await req.json();
-  const { email, senha, nome, username, modulos } = body as { email:string; senha:string; nome:string; username:string; modulos:string[] };
-  const login = normalizarUsername(username || "");
-  if (!email || !senha || !nome || !login) return NextResponse.json({ error: "Preencha nome, usuário, e-mail e senha." }, { status: 400 });
-  if (!usernameValido(login)) return NextResponse.json({ error: "Usuário: use 3–30 caracteres, apenas letras, números, ponto, hífen ou underscore." }, { status: 400 });
+  const { email, senha, nome, username, modulos } = body as { email:string; senha:string; nome:string; username?:string; modulos:string[] };
+  const login = normalizarUsername(username || gerarUsername(nome || ""));
+  if (!email || !senha || !nome || !login) return NextResponse.json({ error: "Preencha nome, e-mail e senha." }, { status: 400 });
+  if (!usernameValido(login)) return NextResponse.json({ error: "Não foi possível gerar um usuário válido a partir do nome. Use um nome com pelo menos 3 letras." }, { status: 400 });
   if (senha.length < 6) return NextResponse.json({ error: "A senha precisa ter pelo menos 6 caracteres." }, { status: 400 });
 
   const admin = createAdminClient();
   const { data: usernameExistente } = await admin.from("profiles").select("id").ilike("username", login).limit(1).maybeSingle();
-  if (usernameExistente) return NextResponse.json({ error: "Esse nome de usuário já está em uso." }, { status: 400 });
+  if (usernameExistente) return NextResponse.json({ error: `O usuário "${login}" já está em uso. Escolha outro nome para a pessoa ou informe um usuário diferente.` }, { status: 400 });
 
   const { data: novoUsuario, error: erroCriacao } = await admin.auth.admin.createUser({ email: email.trim(), password: senha, email_confirm: true });
   if (erroCriacao || !novoUsuario.user) {
@@ -39,7 +42,7 @@ export async function POST(req: NextRequest) {
     await admin.auth.admin.deleteUser(novoUsuario.user.id);
     return NextResponse.json({ error: erroPerfil.code === "23505" ? "Esse nome de usuário já está em uso." : "Não foi possível vincular o usuário à casa." }, { status: 500 });
   }
-  return NextResponse.json({ ok: true, id: novoUsuario.user.id });
+  return NextResponse.json({ ok: true, id: novoUsuario.user.id, username: login });
 }
 
 export async function DELETE(req: NextRequest) {
