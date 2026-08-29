@@ -1,0 +1,41 @@
+name: Patch Home Care
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  patch:
+    if: ${{ !contains(github.event.head_commit.message, '[homecare-patch]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply Home Care occurrence advancement
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path('components/app/AtividadesV2Client.tsx')
+          s=p.read_text()
+          s=s.replace('import { useMemo, useState } from "react";', 'import { useEffect, useMemo, useState } from "react";')
+          s=s.replace('Activity, ActivityCompletion, Profile, ShoppingItem, Recorrencia, ActivityType', 'Activity, ActivityCompletion, ActivityOccurrenceOverride, Profile, ShoppingItem, Recorrencia, ActivityType')
+          s=s.replace('const [salvando,setSalvando] = useState(false);', 'const [salvando,setSalvando] = useState(false);\n  const [adiantamentos,setAdiantamentos] = useState<ActivityOccurrenceOverride[]>([]);')
+          s=s.replace('  const minhas=atividades.filter(a=>a.ativo&&a.responsavel===meuId&&vence(a,hoje));', '  const hojeData=hojeISO();\n  const movedFromToday=new Set(adiantamentos.filter(o=>o.original_date===hojeData).map(o=>o.activity_id));\n  const movedToToday=new Set(adiantamentos.filter(o=>o.target_date===hojeData).map(o=>o.activity_id));\n  const minhas=atividades.filter(a=>a.ativo&&a.responsavel===meuId&&((vence(a,hoje)&&!movedFromToday.has(a.id))||movedToToday.has(a.id)));')
+          s=s.replace('    const [a,c,cp]=await Promise.all([', '    const [a,c,cp,o]=await Promise.all([')
+          s=s.replace('      supabase.from("shopping_items").select("*").order("created_at")\n    ]);', '      supabase.from("shopping_items").select("*").order("created_at"),\n      supabase.from("activity_occurrence_overrides").select("*")\n    ]);')
+          s=s.replace('    if(cp.data)setCompras(cp.data as ShoppingItem[]);\n  }', '    if(cp.data)setCompras(cp.data as ShoppingItem[]);\n    if(o.data)setAdiantamentos(o.data as ActivityOccurrenceOverride[]);\n  }\n\n  useEffect(()=>{ recarregar(); },[]);\n\n  function dataSemana(d:number){const x=new Date();x.setHours(12,0,0,0);x.setDate(x.getDate()-x.getDay()+d);return x.toISOString().slice(0,10);}\n  async function adiantarTarefa(a:Activity, originalDay:number, targetDay:number){\n    if(a.recorrencia==="diario"){alert("Tarefas diárias não podem ser adiantadas.");return;}\n    if(originalDay===targetDay){return;}\n    const original_date=dataSemana(originalDay), target_date=dataSemana(targetDay);\n    const {error}=await supabase.from("activity_occurrence_overrides").upsert({activity_id:a.id,original_date,target_date,created_by:meuId},{onConflict:"activity_id,original_date"});\n    if(error){alert(`Não foi possível adiantar a tarefa: ${error.message}`);return;}\n    await recarregar();\n  }')
+          s=s.replace('{aba==="semana"&&<Semana atividades={atividades} membros={membros} onEdit={setEditar}/>}','{aba==="semana"&&<Semana atividades={atividades} membros={membros} adiantamentos={adiantamentos} onEdit={setEditar} onAdvance={adiantarTarefa}/>}')
+          new_week='''function Semana({atividades,membros,adiantamentos,onEdit,onAdvance}:{atividades:Activity[];membros:Profile[];adiantamentos:ActivityOccurrenceOverride[];onEdit:(a:Activity)=>void;onAdvance:(a:Activity,originalDay:number,targetDay:number)=>void}){\n  const [dia,setDia]=useState(new Date().getDay());\n  const [movendo,setMovendo]=useState<string|null>(null);\n  const movedIn=adiantamentos.filter(o=>o.target_date===dataDia(dia)).map(o=>o.activity_id);\n  const movedOut=adiantamentos.filter(o=>o.original_date===dataDia(dia)).map(o=>o.activity_id);\n  const lista=atividades.filter(a=>a.ativo&&((vence(a,dia)&&!movedOut.includes(a.id))||movedIn.includes(a.id)));\n  return <><div className="grid grid-cols-7 gap-1.5 mb-4">{DIAS.map((d,i)=><button key={d} onClick={()=>setDia(i)} className="rounded-xl py-2 bg-white shadow-sm" style={{border:dia===i?`2px solid ${ACCENT}`:"2px solid transparent"}}><div className="text-[9.5px] font-bold text-[#6E7091]">{d}</div></button>)}</div><div className="bg-white rounded-[20px] px-4 shadow-sm">{lista.length?lista.map(a=><div key={a.id} className="py-3 border-b border-[#E9E7F5] last:border-0 flex items-center gap-2"><div className="flex-1 min-w-0"><div className="text-[14px] font-semibold">{a.nome}</div><div className="text-[11px] text-[#6E7091]">{a.tipo==="flex"?"Flex · validação":"Tarefa"} · {membros.find(m=>m.id===a.responsavel)?.nome||"sem responsável"}{movedIn.includes(a.id)?" · adiantada para hoje":""}</div></div><button aria-label={`Editar ${a.nome}`} onClick={()=>onEdit(a)} className="w-9 h-9 rounded-full grid place-items-center text-[#6E7091] hover:bg-[#F3F2F8] active:scale-90 transition text-[18px]">✎</button>{a.recorrencia!=="diario"&&<button onClick={()=>setMovendo(movendo===a.id?null:a.id)} className="px-2.5 py-2 rounded-xl bg-[#F3F2F8] text-[10px] font-extrabold text-[#6E7091] active:scale-95">Adiantar</button>}{movendo===a.id&&<select autoFocus defaultValue={dia} onChange={e=>{onAdvance(a,dia,Number(e.target.value));setMovendo(null)}} className="absolute mt-20 right-5 z-20 rounded-xl border border-[#E9E7F5] bg-white px-2 py-2 text-[11px] shadow-lg">{DIAS.map((d,i)=><option key={d} value={i}>{d}</option>)}</select>}</div>):<Empty text="Nada nesse dia"/>}</div></>\n}\nfunction dataDia(d:number){const x=new Date();x.setHours(12,0,0,0);x.setDate(x.getDate()-x.getDay()+d);return x.toISOString().slice(0,10)}\n'''
+          s=re.sub(r'function Semana\([\s\S]*?\nfunction Overlay', new_week+'function Overlay', s, count=1)
+          p.write_text(s)
+          PY
+      - name: Commit patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add components/app/AtividadesV2Client.tsx
+          git diff --cached --quiet && exit 0
+          git commit -m "feat: advance recurring activity occurrences [homecare-patch]"
+          git push
