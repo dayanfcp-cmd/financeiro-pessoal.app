@@ -15,19 +15,51 @@ Este arquivo é o caderno de passagem entre os agentes de IA que trabalham no pr
 
 ## 2026-08-28 — ChatGPT
 
+**Tarefa:** Implementar lista de compras com arquivamento e tarefa FLEX com validação.
+
+**Banco/Supabase:**
+- Migration `add_flex_activity_validation` adicionou `activities.tipo` (`normal`/`flex`), `activities.condicao`, `activity_completions.validacao_resultado` e `activity_completions.verificado_em`.
+- Foi mantida a unicidade existente de uma conclusão por atividade/data.
+
+**Lista de compras:**
+- Criado `components/app/AtividadesV2Client.tsx`.
+- A aba Hoje mostra os itens pendentes da lista de compras.
+- A aba Lista de compras mostra todos os itens pendentes e uma área de Arquivados.
+- Marcar um item como comprado faz `comprado=true` e o item sai da lista principal, indo para Arquivados/Painel.
+- É possível Reabrir um item arquivado.
+
+**FLEX / validação:**
+- Nova tarefa pode ser criada como `Tarefa normal` ou `Flex · validação`.
+- Flex exige uma condição, por exemplo: `Há roupa na máquina?`.
+- Ao executar uma Flex, o usuário escolhe `Não` ou `Sim, condição verdadeira`.
+- A verificação é sempre registrada.
+- `validacao_resultado=true` conta como atividade realizada.
+- `validacao_resultado=false` fica registrada como verificação feita, mas NÃO conta como atividade realizada.
+- O histórico/painel exibe verificações e quantas foram contabilizadas.
+
+**Arquivos:**
+- `components/app/AtividadesV2Client.tsx` — nova interface do módulo.
+- `app/atividades/page.tsx` — passou a usar o novo cliente.
+- `lib/types/database.ts` — tipos atualizados para FLEX/validação.
+
+**Commits:** `e0d91fb`, `fa8866f`, `3524b7c`.
+
+**Próximo passo:** testar no deploy da Vercel criar uma Flex, verificar com SIM/NÃO e confirmar a contagem; testar adicionar uma compra, arquivar e encontrá-la no Painel/Arquivados. Se algum INSERT direto pelo cliente for bloqueado por RLS, mover a operação para server action/API mantendo as mesmas regras.
+
+---
+
+## 2026-08-28 — ChatGPT
+
 **Tarefa:** Corrigir erro ao criar novo usuário no módulo Usuários.
 
-**Diagnóstico:** A API `/api/usuarios` já exigia `username`, mas o formulário antigo não enviava esse campo. Por isso, mesmo com nome, e-mail, senha e módulos preenchidos na tela, a API respondia que faltavam dados.
+**Diagnóstico:** A API `/api/usuarios` já exigia `username`, mas o formulário antigo não enviava esse campo.
 
 **Alterações:**
-- `components/app/UsuariosClient.tsx`: adicionado campo visível **Nome de usuário** no cadastro e o valor passou a ser enviado à API.
-- `app/api/usuarios/route.ts`: o backend agora também aceita criação sem username explícito, gerando um username válido a partir do nome. Isso mantém compatibilidade com clientes antigos.
-- O username é normalizado e continua sendo usado pelo login de usuário ou e-mail.
-- O Supabase Auth cria a conta com e-mail/senha e o perfil recebe o username e os módulos escolhidos.
+- Adicionado campo visível Nome de usuário no cadastro.
+- Backend aceita username explícito ou gera um a partir do nome.
+- Login por username ou e-mail continua sendo suportado.
 
 **Commits:** `0740846` e `3998bdb`.
-
-**Próximo passo:** Testar criar Anna no módulo Usuários. Exemplo: Nome `Anna`, usuário `anna`, e-mail, senha e módulo Atividades. Depois testar login com `anna` e também com o e-mail.
 
 ---
 
@@ -36,9 +68,8 @@ Este arquivo é o caderno de passagem entre os agentes de IA que trabalham no pr
 **Tarefa:** Melhorar a tipografia do app para uma aparência mais premium/fintech.
 
 **Alterações:**
-- `app/layout.tsx`: adicionada a fonte Inter via `next/font/google`, com carregamento otimizado e variável CSS `--font-inter`.
-- `app/globals.css`: Inter passou a ser a fonte padrão global, inclusive no tema Tailwind e em botões, inputs, textareas e selects.
-- Mantidos os estilos e cores existentes; a mudança é tipográfica.
+- `app/layout.tsx`: fonte Inter.
+- `app/globals.css`: Inter como fonte global.
 
 **Commits:** `92609d3` e `326f814`.
 
@@ -48,11 +79,7 @@ Este arquivo é o caderno de passagem entre os agentes de IA que trabalham no pr
 
 **Tarefa:** Corrigir duplicidade de membro na lista "Atribuir a".
 
-**Diagnóstico:** O Supabase tinha dois perfis chamados Dayan na mesma casa: o perfil antigo e o perfil do login atual. O perfil atual é o mais recente.
-
-**Alteração:**
-- Atualizado `lib/data/household-queries.ts` para deduplicar perfis com o mesmo nome e priorizar o mais recente.
-- A lista de "Atribuir a" passa a mostrar apenas um Dayan.
+**Alteração:** `getMembrosDaCasa()` deduplica perfis com mesmo nome e prioriza o mais recente.
 
 **Commit:** `800525a5fc02660ed1ca8568eb7a072a0dbd81c1`.
 
@@ -62,13 +89,7 @@ Este arquivo é o caderno de passagem entre os agentes de IA que trabalham no pr
 
 **Tarefa:** Corrigir feedback visual dos botões de módulos e reduzir a sensação de atraso na navegação.
 
-**Alterações:**
-- Atualizado `components/app/Launcher.tsx`.
-- Adicionado feedback de hover no PC e pressionamento no PC/celular.
-- Adicionado foco visível para teclado.
-- Adicionado estado de navegação com spinner, evitando duplo clique.
-
-**Próximo passo:** Se o atraso continuar antes do clique, investigar o carregamento do perfil/Supabase.
+**Alterações:** hover no PC, pressionamento no PC/celular, foco de teclado e spinner de navegação.
 
 ---
 
@@ -77,6 +98,5 @@ Este arquivo é o caderno de passagem entre os agentes de IA que trabalham no pr
 **Tarefa:** Implantação do protocolo de colaboração Claude ↔ ChatGPT.
 
 **Alterações:**
-- Atualizado `AGENTS.md` com protocolo obrigatório de handoff entre os agentes.
+- Atualizado `AGENTS.md` com protocolo obrigatório de handoff.
 - Criado `AI_HANDOFF.md` como registro compartilhado.
-- `CLAUDE.md` já aponta para `AGENTS.md`, portanto as regras compartilhadas passam a valer também para Claude.
