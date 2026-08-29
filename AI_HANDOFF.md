@@ -15,19 +15,32 @@ Este arquivo é o caderno de passagem entre os agentes de IA que trabalham no pr
 
 ## 2026-08-28 — ChatGPT
 
+**Tarefa:** Corrigir erro ao criar novo usuário no módulo Usuários.
+
+**Diagnóstico:** A API `/api/usuarios` já exigia `username`, mas o formulário antigo não enviava esse campo. Por isso, mesmo com nome, e-mail, senha e módulos preenchidos na tela, a API respondia que faltavam dados.
+
+**Alterações:**
+- `components/app/UsuariosClient.tsx`: adicionado campo visível **Nome de usuário** no cadastro e o valor passou a ser enviado à API.
+- `app/api/usuarios/route.ts`: o backend agora também aceita criação sem username explícito, gerando um username válido a partir do nome. Isso mantém compatibilidade com clientes antigos.
+- O username é normalizado e continua sendo usado pelo login de usuário ou e-mail.
+- O Supabase Auth cria a conta com e-mail/senha e o perfil recebe o username e os módulos escolhidos.
+
+**Commits:** `0740846` e `3998bdb`.
+
+**Próximo passo:** Testar criar Anna no módulo Usuários. Exemplo: Nome `Anna`, usuário `anna`, e-mail, senha e módulo Atividades. Depois testar login com `anna` e também com o e-mail.
+
+---
+
+## 2026-08-28 — ChatGPT
+
 **Tarefa:** Melhorar a tipografia do app para uma aparência mais premium/fintech.
 
 **Alterações:**
 - `app/layout.tsx`: adicionada a fonte Inter via `next/font/google`, com carregamento otimizado e variável CSS `--font-inter`.
 - `app/globals.css`: Inter passou a ser a fonte padrão global, inclusive no tema Tailwind e em botões, inputs, textareas e selects.
 - Mantidos os estilos e cores existentes; a mudança é tipográfica.
-- Adicionados recursos de OpenType da Inter para uma aparência mais refinada em textos de interface.
-
-**Motivo:** Inter tem excelente legibilidade em números, tabelas, saldos e interfaces densas e é uma escolha adequada para transmitir estética de aplicativo financeiro/bancário moderno.
 
 **Commits:** `92609d3` e `326f814`.
-
-**Próximo passo:** Conferir o deploy da Vercel em PC e celular. Se a fonte não carregar em algum ambiente, investigar o build/`next/font`, sem voltar automaticamente para a fonte anterior.
 
 ---
 
@@ -35,17 +48,13 @@ Este arquivo é o caderno de passagem entre os agentes de IA que trabalham no pr
 
 **Tarefa:** Corrigir duplicidade de membro na lista "Atribuir a".
 
-**Diagnóstico:** O Supabase tinha dois perfis chamados Dayan na mesma casa: o perfil antigo e o perfil do login atual. O perfil atual é o mais recente. Não havia registros de atividades/compras vinculados ao perfil antigo nas colunas com FK para `profiles`, mas a ferramenta disponível não permitiu excluir o perfil antigo diretamente.
+**Diagnóstico:** O Supabase tinha dois perfis chamados Dayan na mesma casa: o perfil antigo e o perfil do login atual. O perfil atual é o mais recente.
 
 **Alteração:**
-- Atualizado `lib/data/household-queries.ts`.
-- `getMembrosDaCasa()` agora ordena por papel e, em caso de empate, pelo `created_at` mais recente.
-- Perfis com o mesmo nome, ignorando maiúsculas/minúsculas e espaços, são deduplicados.
-- O perfil mais recente é mantido. Assim, a lista de "Atribuir a" mostra apenas um Dayan e prioriza o perfil atual.
+- Atualizado `lib/data/household-queries.ts` para deduplicar perfis com o mesmo nome e priorizar o mais recente.
+- A lista de "Atribuir a" passa a mostrar apenas um Dayan.
 
-**Commit:** `800525a5fc02660ed1ca8568eb7a072a0dbd81c1`
-
-**Observação:** A correção é de aplicação e não apaga o perfil antigo do Supabase. Se futuramente houver uma operação administrativa segura para excluir o perfil antigo, ele pode ser removido depois de nova verificação das dependências.
+**Commit:** `800525a5fc02660ed1ca8568eb7a072a0dbd81c1`.
 
 ---
 
@@ -55,16 +64,11 @@ Este arquivo é o caderno de passagem entre os agentes de IA que trabalham no pr
 
 **Alterações:**
 - Atualizado `components/app/Launcher.tsx`.
-- Os cards de Financeiro, Atividades e Usuários continuam sendo botões reais e agora têm `cursor-pointer` e `touch-manipulation`.
-- Adicionado feedback de hover no PC.
-- Adicionado feedback de pressionamento (`active:scale`) no PC e celular.
+- Adicionado feedback de hover no PC e pressionamento no PC/celular.
 - Adicionado foco visível para teclado.
-- Adicionado estado de navegação com `useTransition`.
-- Enquanto a rota abre, o botão mostra spinner e fica temporariamente desabilitado, evitando duplo clique e deixando claro que o toque foi recebido.
+- Adicionado estado de navegação com spinner, evitando duplo clique.
 
-**Observação:** A alteração foi feita apenas na interface/navegação do launcher; não altera regras de acesso nem dados do Supabase.
-
-**Próximo passo:** Verificar no deploy da Vercel em PC e celular. Se o atraso continuar perceptível antes mesmo do clique (durante o carregamento inicial do launcher), investigar o `getMeuPerfil()`/consultas do Supabase em vez de mascarar com animação.
+**Próximo passo:** Se o atraso continuar antes do clique, investigar o carregamento do perfil/Supabase.
 
 ---
 
@@ -76,6 +80,3 @@ Este arquivo é o caderno de passagem entre os agentes de IA que trabalham no pr
 - Atualizado `AGENTS.md` com protocolo obrigatório de handoff entre os agentes.
 - Criado `AI_HANDOFF.md` como registro compartilhado.
 - `CLAUDE.md` já aponta para `AGENTS.md`, portanto as regras compartilhadas passam a valer também para Claude.
-
-**Próximo passo:**
-- Nas próximas tarefas, cada agente deve ler este arquivo antes de trabalhar e deixar uma nota ao finalizar.
