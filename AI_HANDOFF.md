@@ -15,6 +15,24 @@ Este arquivo é o caderno de passagem entre os agentes de IA que trabalham no pr
 
 ## 2026-08-28 — ChatGPT
 
+**Tarefa:** Melhorar a tipografia do app para uma aparência mais premium/fintech.
+
+**Alterações:**
+- `app/layout.tsx`: adicionada a fonte Inter via `next/font/google`, com carregamento otimizado e variável CSS `--font-inter`.
+- `app/globals.css`: Inter passou a ser a fonte padrão global, inclusive no tema Tailwind e em botões, inputs, textareas e selects.
+- Mantidos os estilos e cores existentes; a mudança é tipográfica.
+- Adicionados recursos de OpenType da Inter para uma aparência mais refinada em textos de interface.
+
+**Motivo:** Inter tem excelente legibilidade em números, tabelas, saldos e interfaces densas e é uma escolha adequada para transmitir estética de aplicativo financeiro/bancário moderno.
+
+**Commits:** `92609d3` e `326f814`.
+
+**Próximo passo:** Conferir o deploy da Vercel em PC e celular. Se a fonte não carregar em algum ambiente, investigar o build/`next/font`, sem voltar automaticamente para a fonte anterior.
+
+---
+
+## 2026-08-28 — ChatGPT
+
 **Tarefa:** Corrigir duplicidade de membro na lista "Atribuir a".
 
 **Diagnóstico:** O Supabase tinha dois perfis chamados Dayan na mesma casa: o perfil antigo e o perfil do login atual. O perfil atual é o mais recente. Não havia registros de atividades/compras vinculados ao perfil antigo nas colunas com FK para `profiles`, mas a ferramenta disponível não permitiu excluir o perfil antigo diretamente.
