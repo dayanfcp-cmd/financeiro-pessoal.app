@@ -61,16 +61,21 @@ export function PainelAtividades({ meuId, householdId, membros }: { meuId: strin
   const conclusaoPorOcorrencia = useMemo(() => new Map(conclusoes.map(c => [`${c.activity_id}|${c.data}`, c])), [conclusoes]);
 
   const ocorrencias = useMemo(() => {
-    const out: { activity: Activity; data: string; date: Date }[] = [];
+    const mapa = new Map<string, { activity: Activity; data: string; date: Date }>();
     for (const data of datas) {
       const dataIso = iso(data);
       for (const a of atividades) {
         const saiuDoDia = adiantamentos.some(o => o.activity_id === a.id && o.original_date === dataIso);
         const entrouNoDia = adiantamentos.some(o => o.activity_id === a.id && o.target_date === dataIso);
-        if ((venceNoDia(a, data.getDay()) && !saiuDoDia) || entrouNoDia) out.push({ activity: a, data: dataIso, date: data });
+        if ((venceNoDia(a, data.getDay()) && !saiuDoDia) || entrouNoDia) {
+          // Uma tarefa só pode representar uma ocorrência por atividade/data.
+          // Isso evita duplicação quando um adiantamento cai em um dia que já
+          // seria contemplado pela programação normal.
+          mapa.set(`${a.id}|${dataIso}`, { activity: a, data: dataIso, date: data });
+        }
       }
     }
-    return out;
+    return Array.from(mapa.values());
   }, [atividades, datas, adiantamentos]);
 
   const porPessoa = useMemo(() => membros.map(p => {
