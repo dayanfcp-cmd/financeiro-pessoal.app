@@ -8,12 +8,14 @@ const MODULOS: Record<string, { label: string; desc: string; icone: string; rota
   financeiro: { label: "Financeiro", desc: "Contas, cartões, compromissos", icone: "carteira", rota: "/financeiro", grad: "linear-gradient(150deg,#8A6BFF 0%,#6C4BF4 52%,#4E31C9 100%)" },
   atividades: { label: "Atividades", desc: "Tarefas de casa, em dupla", icone: "check", rota: "/atividades", grad: "linear-gradient(150deg,#3FCB9C 0%,#12A87A 55%,#0B7A57 100%)" },
   usuarios: { label: "Usuários", desc: "Quem acessa o quê", icone: "usuarios", rota: "/usuarios", grad: "linear-gradient(150deg,#F4B860 0%,#CF8A1C 55%,#9C6710 100%)" },
+  "controle-tvs": { label: "Controle de TVs", desc: "Philco, LG e Samsung Crystal", icone: "casa", rota: "/controle-tvs", grad: "linear-gradient(150deg,#4E9BFF 0%,#2563EB 55%,#1E40AF 100%)" },
 };
 
 export function Launcher({ nome, modulos }: { nome: string; modulos: string[] }) {
   const router = useRouter();
   const [isNavigating, startNavigation] = useTransition();
-  const disponiveis = modulos.filter((m) => MODULOS[m]);
+  // O controle de TVs fica disponível no launcher sem alterar as permissões dos outros módulos.
+  const disponiveis = [...new Set([...modulos.filter((m) => MODULOS[m]), "controle-tvs"])];
 
   useEffect(() => {
     // Pré-carrega as telas assim que o launcher aparece. Isso elimina o atraso
